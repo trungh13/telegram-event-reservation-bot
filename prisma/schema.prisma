@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  apiKeys   ApiKey[]
+  bindings  AccountUserBinding[]
+  events    EventSeries[]
+  auditLogs AuditLog[]
+
+  @@map("accounts")
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@map("api_keys")
+}
+
+model TelegramUser {
+  id           BigInt   @id /// Telegram ID
+  username     String?
+  firstName    String?
+  lastName     String?
+  languageCode String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bindings      AccountUserBinding[]
+  participation ParticipationLog[]
+
+  @@map("telegram_users")
+}
+
+model AccountUserBinding {
+  id             String   @id @default(uuid())
+  accountId      String
+  telegramUserId BigInt
+  role           String   @default("MEMBER") /// MEMBER, ADMIN
+  createdAt      DateTime @default(now())
+
+  account      Account      @relation(fields: [accountId], references: [id])
+  telegramUser TelegramUser @relation(fields: [telegramUserId], references: [id])
+
+  @@unique([accountId, telegramUserId])
+  @@map("account_user_bindings")
+}
+
+model EventSeries {
+  id          String   @id @default(uuid())
+  accountId   String
+  title       String
+  description String?
+  timezone    String   @default("Europe/Helsinki")
+  recurrence  Json     /// Recurrence rules (RRule or custom)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  account   Account         @relation(fields: [accountId], references: [id])
+  instances EventInstance[]
+
+  @@map("event_series")
+}
+
+model EventInstance {
+  id            String   @id @default(uuid())
+  seriesId      String
+  startTime     DateTime
+  endTime       DateTime
+  status        String   @default("SCHEDULED") /// SCHEDULED, CANCELLED, COMPLETED
+  topicId       String?  /// Telegram thread/topic ID if applicable
+  chatId        BigInt?  /// Telegram chat ID where this instance lives
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  series        EventSeries        @relation(fields: [seriesId], references: [id])
+  participation ParticipationLog[]
+
+  @@unique([seriesId, startTime])
+  @@map("event_instances")
+}
+
+model ParticipationLog {
+  id             String   @id @default(uuid())
+  instanceId     String
+  telegramUserId BigInt
+  action         String   /// JOIN, LEAVE, PLUS_ONE
+  payload        Json?    /// Extra data (e.g. +1 count, reason)
+  createdAt      DateTime @default(now())
+
+  instance     EventInstance @relation(fields: [instanceId], references: [id])
+  telegramUser TelegramUser  @relation(fields: [telegramUserId], references: [id])
+
+  @@map("event_participation_log")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  accountId  String
+  actorId    String?  /// Could be API key ID or internal user
+  action     String   /// CREATE_EVENT, CANCEL, etc.
+  details    Json?
+  occurredAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@map("audit_log")
+}
