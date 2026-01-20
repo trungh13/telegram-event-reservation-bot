@@ -52,7 +52,23 @@ describe('TelegramService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('onMessage (/create)', () => {
+  describe('onList (/list)', () => {
+    it('should validate invalid input', async () => {
+      const ctx = {
+        message: { text: '/list' },
+        reply: jest.fn(),
+        from: { id: 123 },
+      } as unknown as Context;
+
+      mockAccountService.getAccountForUser.mockResolvedValue(null);
+
+      await service.onList(ctx);
+
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Use /start <token> first'));
+    });
+  });
+
+  describe('onCreate (/create)', () => {
     it('should validate invalid input', async () => {
       const ctx = {
         message: { text: '/create InvalidInput' },
@@ -62,7 +78,7 @@ describe('TelegramService', () => {
 
       mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
 
-      await service.onMessage(ctx);
+      await service.onCreate(ctx);
 
       expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Usage: /create'));
     });
@@ -76,7 +92,7 @@ describe('TelegramService', () => {
   
         mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
   
-        await service.onMessage(ctx);
+        await service.onCreate(ctx);
   
         // Expect Zod validation error
         expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Validation Input Error'));

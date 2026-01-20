@@ -75,81 +75,107 @@ export class TelegramService {
   }
 
   @Command('list')
-  async onList(@Ctx() ctx: Context): Promise<any> {
+  async onList(@Ctx() ctx: Context): Promise<void> {
     const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
     if (!account) {
-      return ctx.reply('You are not bound to any account. Use /start <token> first.');
+      await ctx.reply('You are not bound to any account. Use /start <token> first.');
+      return;
     }
 
     const series = await this.eventService.getActiveSeries(account.id);
     if (series.length === 0) {
-      return ctx.reply('No active event series found.');
+      await ctx.reply('No active event series found.');
+      return;
     }
 
     const list = series.map(s => `- ${s.title} (${s.recurrence})`).join('\n');
     await ctx.reply(`Active Event Series:\n${list}`);
   }
 
-  @On('text')
-  async onMessage(@Ctx() ctx: Context): Promise<any> {
+  @Command('create')
+  async onCreate(@Ctx() ctx: Context): Promise<void> {
+    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    if (!account) {
+      await ctx.reply('Admin only. Link your account first.');
+      return;
+    }
+
     const message = ctx.message as any;
     const text = message.text || '';
-
-    if (text.startsWith('/list')) {
-        return this.onList(ctx);
+    const content = text.replace('/create', '').trim();
+    if (!content) {
+      await ctx.reply('Usage: /create <title> @ <rrule>\nExample: /create Yoga @ FREQ=WEEKLY;BYDAY=MO');
+      return;
     }
 
-    if (text.startsWith('/create')) {
-        const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
-        if (!account) {
-          return ctx.reply('Admin only. Link your account first.');
-        }
-
-        const content = text.replace('/create', '').trim();
-        const [title, recurrence] = content.split('@').map(s => s.trim());
-
-        if (!title || !recurrence) {
-          return ctx.reply('Usage: /create <title> @ <rrule>\nExample: /create Yoga @ FREQ=WEEKLY;BYDAY=MO');
-        }
-
-        const validation = CreateEventSeriesSchema.safeParse({ title, recurrence });
-        if (!validation.success) {
-           return ctx.reply(`❌ Validation Input Error:\n${validation.error.issues.map(e => `- ${e.message}`).join('\n')}`);
-        }
-
-        try {
-          const series = await this.eventService.createSeries(account.id, {
-            title,
-            recurrence: recurrence,
-          });
-          await ctx.reply(`Created series: ${series.title}`);
-        } catch (error) {
-          await ctx.reply(`Error creating series: ${error.message}`);
-        }
+    const [title, recurrence] = content.split('@').map(s => s.trim());
+    if (!title || !recurrence) {
+      await ctx.reply('Usage: /create <title> @ <rrule>\nExample: /create Yoga @ FREQ=WEEKLY;BYDAY=MO');
+      return;
     }
 
-    if (text.startsWith('/announce')) {
-        const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
-        if (!account) return ctx.reply('Admin only.');
-
-        const activeSeries = await this.eventService.getActiveSeries(account.id);
-        if (activeSeries.length === 0) return ctx.reply('No active series to announce.');
-
-        const series = activeSeries[0];
-        const instance = (series as any).instances?.[0];
-
-        if (!instance) return ctx.reply('No instances materialized yet.');
-
-        const keyboard = Markup.inlineKeyboard([
-          [
-            Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
-            Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
-            Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
-          ]
-        ]);
-
-        await ctx.reply(`📅 ${series.title}\n⏰ ${instance.startTime.toLocaleString()}\n\nWho's in?`, keyboard);
+    const validation = CreateEventSeriesSchema.safeParse({ title, recurrence });
+    if (!validation.success) {
+      await ctx.reply(`❌ Validation Input Error:\n${validation.error.issues.map(e => `- ${e.message}`).join('\n')}`);
+      return;
     }
+
+    try {
+      const series = await this.eventService.createSeries(account.id, {
+        title,
+        recurrence: recurrence,
+      });
+      await ctx.reply(`Created series: ${series.title}`);
+    } catch (error) {
+      await ctx.reply(`Error creating series: ${error.message}`);
+    }
+  }
+
+  @Command('announce')
+  async onAnnounce(@Ctx() ctx: Context): Promise<void> {
+    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    if (!account) {
+      await ctx.reply('Admin only.');
+      return;
+    }
+
+    const activeSeries = await this.eventService.getActiveSeries(account.id);
+    if (activeSeries.length === 0) {
+      await ctx.reply('No active series to announce.');
+      return;
+    }
+
+    const series = activeSeries[0];
+    const instance = (series as any).instances?.[0];
+
+    if (!instance) {
+      await ctx.reply('No instances materialized yet.');
+      return;
+    }
+
+    const keyboard = Markup.inlineKeyboard([
+      [
+        Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
+        Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
+        Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
+      ]
+    ]);
+
+    await ctx.reply(`📅 ${series.title}\n⏰ ${instance.startTime.toLocaleString()}\n\nWho's in?`, keyboard);
+  }
+
+  @On('text')
+  async onMessage(@Ctx() ctx: Context): Promise<void> {
+    // Catch-all for other text messages
+    const message = ctx.message as any;
+    const text = message.text || '';
+    
+    // If it's a command that didn't match anything above, we can ignore or log
+    if (text.startsWith('/')) {
+        return;
+    }
+
+    this.logger.log(`Received message: ${text}`);
   }
 
   @Action(/JOIN:(.+)/)
