@@ -1,10 +1,42 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as crypto from 'crypto';
+import { TelegramUserService } from '../telegram-user/telegram-user.service';
 
 @Injectable()
 export class AccountService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly telegramUser: TelegramUserService,
+  ) {}
+
+  async bindUserToAccount(accountId: string, tgUser: {
+    id: bigint;
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+  }) {
+    // 1. Ensure user exists
+    await this.telegramUser.ensureUser(tgUser);
+
+    // 2. Create binding
+    return this.prisma.accountUserBinding.upsert({
+      where: {
+        accountId_telegramUserId: {
+          accountId,
+          telegramUserId: tgUser.id,
+        },
+      },
+      create: {
+        accountId,
+        telegramUserId: tgUser.id,
+        role: 'OWNER', // Default to OWNER for deep-link binding for now
+      },
+      update: {
+        role: 'OWNER',
+      },
+    });
+  }
 
   async createAccount(name: string) {
     const account = await this.prisma.account.create({
