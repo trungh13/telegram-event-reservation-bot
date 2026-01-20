@@ -1,4 +1,3 @@
-```typescript
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectBot, Update, Start, Help, On, Ctx, Command, Action } from 'nestjs-telegraf';
 import { Context, Telegraf, Markup } from 'telegraf';
@@ -19,7 +18,7 @@ export class TelegramService {
   ) {}
 
   @Start()
-  async onStart(@Ctx() ctx: Context) {
+  async onStart(@Ctx() ctx: Context): Promise<any> {
     const message = ctx.message as any;
     const text = message.text || '';
     const args = text.split(' ');
@@ -50,13 +49,14 @@ export class TelegramService {
   }
 
   @Help()
-  async onHelp(@Ctx() ctx: Context) {
+  async onHelp(@Ctx() ctx: Context): Promise<any> {
     await ctx.reply(
       'Available commands:\n' +
       '/start - Initialize or bind account\n' +
       '/help - Show this help\n' +
       '/list - List your active event series\n' +
-      '/create <title> @ <rrule> - Create a new event series (Admins only)'
+      '/create <title> @ <rrule> - Create a new event series (Admins only)\n' +
+      '/announce - Post the next upcoming event (Admins only)'
     );
   }
 
@@ -76,7 +76,6 @@ export class TelegramService {
     await ctx.reply(`Active Event Series:\n${list}`);
   }
 
-  // Handle commands and messages
   @On('text')
   async onMessage(@Ctx() ctx: Context): Promise<any> {
     const message = ctx.message as any;
@@ -92,7 +91,6 @@ export class TelegramService {
           return ctx.reply('Admin only. Link your account first.');
         }
 
-        // Simple parser: /create Weekly Yoga @ FREQ=WEEKLY;BYDAY=MO
         const content = text.replace('/create', '').trim();
         const [title, recurrence] = content.split('@').map(s => s.trim());
 
@@ -118,9 +116,8 @@ export class TelegramService {
         const activeSeries = await this.eventService.getActiveSeries(account.id);
         if (activeSeries.length === 0) return ctx.reply('No active series to announce.');
 
-        // For demo, announce the first instance of the first series
         const series = activeSeries[0];
-        const instance = series.instances[0];
+        const instance = (series as any).instances?.[0];
 
         if (!instance) return ctx.reply('No instances materialized yet.');
 
@@ -168,7 +165,6 @@ export class TelegramService {
       });
 
       await ctx.answerCbQuery(`You ${action === 'LEAVE' ? 'left' : 'joined'}!`);
-      // Optional: Update the message with participant list
     } catch (error) {
       this.logger.error(`Error recording vote: ${error.message}`);
       await ctx.answerCbQuery('Error recording vote.');
