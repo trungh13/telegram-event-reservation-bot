@@ -1,30 +1,60 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectBot, Update, Start, Help, On, Ctx } from 'nestjs-telegraf';
 import { Context, Telegraf } from 'telegraf';
+import { AccountService } from '../account/account.service';
+import { EventService } from '../event/event.service';
+import { ParticipationService } from '../participation/participation.service';
 
 @Update()
 @Injectable()
 export class TelegramService {
   private readonly logger = new Logger(TelegramService.name);
 
-  constructor(@InjectBot() private readonly bot: Telegraf<Context>) {}
+  constructor(
+    @InjectBot() private readonly bot: Telegraf<Context>,
+    private readonly accountService: AccountService,
+    private readonly eventService: EventService,
+    private readonly participationService: ParticipationService,
+  ) {}
 
   @Start()
   async onStart(@Ctx() ctx: Context) {
-    await ctx.reply('Welcome to the Event Booking System!');
+    const message = ctx.message as any;
+    const text = message.text || '';
+    const args = text.split(' ');
+    const token = args.length > 1 ? args[1] : null;
+
+    if (token) {
+      try {
+        const account = await this.accountService.validateApiKey(token);
+        await this.accountService.bindUserToAccount(account.id, {
+          id: BigInt(ctx.from!.id),
+          username: ctx.from!.username,
+          firstName: ctx.from!.first_name,
+          lastName: ctx.from!.last_name,
+        });
+
+        await ctx.reply(`Successfully bound to account: ${account.name}! You are now an admin.`);
+      } catch (error) {
+        this.logger.error(`Failed to bind user: ${error.message}`);
+        await ctx.reply(`Invalid or expired token. Please check your link.`);
+      }
+    } else {
+      await ctx.reply(
+        'Welcome! This bot is for event scheduling.\n\n' +
+        'If you are an admin, use the link provided when you created your account to bind your user.\n' +
+        'If you are a participant, stay tuned for event announcements!'
+      );
+    }
   }
 
   @Help()
   async onHelp(@Ctx() ctx: Context) {
-    await ctx.reply('Send me a message for help.');
+    await ctx.reply(
+      'Available commands:\n' +
+      '/start - Initialize or bind account\n' +
+      '/help - Show this help\n' +
+      '/list - List active events\n' +
+      '/create - Create a new event (Admins only)'
+    );
   }
-
-  @On('text')
-  async onMessage(@Ctx() ctx: Context) {
-    if ('text' in ctx.message!) {
-        const text = ctx.message.text;
-        this.logger.log(`Received message: ${text}`);
-         // TODO: Implement command handling logic here or dispatch to other services
-    }
-  }
-}
