@@ -8,7 +8,7 @@ export const CreateEventSeriesSchema = z.object({
 });
 
 export const BindAccountSchema = z.object({
-  token: z.string().startsWith('sk_', 'Invalid token format. Must start with sk_').min(30, 'Token is too short'),
+  token: z.string().startsWith('sk_', 'Invalid token format.').min(30, 'Token is too short'),
 });
 
 export type CreateEventSeriesDto = z.infer<typeof CreateEventSeriesSchema>;
