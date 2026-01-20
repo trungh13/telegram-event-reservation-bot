@@ -15,9 +15,11 @@
 - [/] **Phase 2: Hardening** <!-- id: 10 -->
     - [ ] Testing & Type Safety <!-- id: 11 -->
     - [x] Input Validation (Zod)
-    - [ ] Quoted Argument Parser (shell-style)
-    - [ ] Bot Welcome & Help Message Revamp
-    - [ ] Human-readable Start Date Support (dd/mm/yyyy)
+    - [x] Quoted Argument Parser (shell-style)
+    - [x] Bot Welcome & Help Message Revamp
+    - [x] Human-readable Start Date Support (dd/mm/yyyy)
+    - [ ] **Group & Topic Support** (Capture chat_id/thread_id)
+    - [ ] **RRule `dtstart` Integration** (Ensure logic matches next-occurrence spec)
     - [x] Manual Testing Plan (Curl & Bot Flow)
 - [ ] **Phase 3: Monetization** <!-- id: 12 -->
     - [ ] Stripe Integration <!-- id: 13 -->
