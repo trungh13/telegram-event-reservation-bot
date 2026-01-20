@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AccountService } from './account.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TelegramUserService } from '../telegram-user/telegram-user.service';
 import { UnauthorizedException } from '@nestjs/common';
 
 const mockPrismaService = {
@@ -13,6 +14,10 @@ const mockPrismaService = {
   },
 };
 
+const mockTelegramUserService = {
+  ensureUser: jest.fn(),
+};
+
 describe('AccountService', () => {
   let service: AccountService;
 
@@ -20,10 +25,8 @@ describe('AccountService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AccountService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: TelegramUserService, useValue: mockTelegramUserService },
       ],
     }).compile();
 

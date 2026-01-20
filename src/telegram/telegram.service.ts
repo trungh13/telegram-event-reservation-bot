@@ -4,6 +4,7 @@ import { Context, Telegraf, Markup } from 'telegraf';
 import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
+import { BindAccountSchema, CreateEventSeriesSchema } from './telegram.dto';
 
 @Update()
 @Injectable()
@@ -51,6 +52,12 @@ export class TelegramService {
     const from = ctx.from;
     this.logger.log(`Binding attempt: User ${from?.id} (@${from?.username}) with token ${token}`);
 
+    const validation = BindAccountSchema.safeParse({ token });
+    if (!validation.success) {
+      const errorMsg = validation.error.issues[0].message;
+      return ctx.reply(`❌ ${errorMsg}`);
+    }
+
     try {
       const account = await this.accountService.validateApiKey(token);
       await this.accountService.bindUserToAccount(account.id, {
@@ -63,7 +70,7 @@ export class TelegramService {
       await ctx.reply(`Successfully bound to account: ${account.name}! You are now an admin.`);
     } catch (error) {
       this.logger.error(`Failed to bind user: ${error.message}`);
-      await ctx.reply(`Invalid or expired token. Please check your link or copy the key correctly.`);
+      await ctx.reply(`Invalid or expired token.`);
     }
   }
 
@@ -103,6 +110,11 @@ export class TelegramService {
 
         if (!title || !recurrence) {
           return ctx.reply('Usage: /create <title> @ <rrule>\nExample: /create Yoga @ FREQ=WEEKLY;BYDAY=MO');
+        }
+
+        const validation = CreateEventSeriesSchema.safeParse({ title, recurrence });
+        if (!validation.success) {
+           return ctx.reply(`❌ Validation Input Error:\n${validation.error.issues.map(e => `- ${e.message}`).join('\n')}`);
         }
 
         try {

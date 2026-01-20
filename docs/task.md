@@ -14,6 +14,6 @@
     - [x] Real-world Testing <!-- id: 8 -->
 - [/] **Phase 2: Hardening** <!-- id: 10 -->
     - [ ] Testing & Type Safety <!-- id: 11 -->
-    - [ ] Input Validation (Zod)
+    - [x] Input Validation (Zod)
 - [ ] **Phase 3: Monetization** <!-- id: 12 -->
     - [ ] Stripe Integration <!-- id: 13 -->
