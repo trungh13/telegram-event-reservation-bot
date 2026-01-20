@@ -237,10 +237,17 @@ export class TelegramService {
         }
     }
 
+    let finalRecurrence = recurrence;
+    if (explicitStartTime) {
+        // Format to iCal format: 20260120T180000Z
+        const iso = explicitStartTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+        finalRecurrence = `DTSTART:${iso}\n${recurrence}`;
+    }
+
     try {
       const series = await this.eventService.createSeries(account.id, {
         title,
-        recurrence: recurrence,
+        recurrence: finalRecurrence,
         chatId: group ? BigInt(group) : undefined,
         topicId: topic,
       });

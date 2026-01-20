@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventService } from './event.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { SchedulerService } from '../scheduler/scheduler.service';
 
 const mockPrismaService = {
   account: {
@@ -11,6 +12,10 @@ const mockPrismaService = {
     create: jest.fn(),
     findMany: jest.fn(),
   },
+};
+
+const mockSchedulerService = {
+  processSeries: jest.fn(),
 };
 
 describe('EventService', () => {
@@ -23,6 +28,10 @@ describe('EventService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: SchedulerService,
+          useValue: mockSchedulerService,
         },
       ],
     }).compile();
