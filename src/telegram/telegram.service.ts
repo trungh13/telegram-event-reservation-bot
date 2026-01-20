@@ -42,11 +42,12 @@ export class TelegramService {
     const helpText = `${title}\n\n` +
       `**Commands:**\n` +
       `• \`/start <key>\` - Bind your account (admins only)\n` +
-      `• \`/create "Title" "RRule" ["Start Date"]\` - Create event series\n` +
+      `• \`/create title=".." rrule=".." [group=".."]\` - Create event series\n` +
       `• \`/list\` - List active series\n` +
+      `• \`/id\` - Get current chat/topic ID\n` +
       `• \`/announce\` - Post next event with voting buttons\n\n` +
       `**Example create:**\n` +
-      `\`/create "Yoga" "FREQ=WEEKLY;BYDAY=MO" "25/01/2026 18:00"\`\n\n` +
+      `\`/create title="Yoga" rrule="FREQ=WEEKLY" group="-100123" date="25/01/2026 18:00"\`\n\n` +
       `**RRule Cheat Sheet:**\n` +
       `• \`FREQ\`: DAILY, WEEKLY, MONTHLY\n` +
       `• \`BYDAY\`: MO, TU, WE... (comma separated)\n` +
@@ -62,6 +63,19 @@ export class TelegramService {
     let match;
     while ((match = regex.exec(text)) !== null) {
       args.push(match[1] || match[2]);
+    }
+    return args;
+  }
+
+  private parseKeyValueArgs(text: string): Record<string, string> {
+    const args: Record<string, string> = {};
+    // Matches key="value" or key=value
+    const regex = /(\w+)=(?:"([^"]*)"|(\S+))/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const key = match[1].toLowerCase();
+      const value = match[2] || match[3];
+      args[key] = value;
     }
     return args;
   }
@@ -106,8 +120,25 @@ export class TelegramService {
       return;
     }
 
-    const list = series.map(s => `- ${s.title} (${s.recurrence})`).join('\n');
-    await ctx.reply(`Active Event Series:\n${list}`);
+    const list = series.map(s => {
+        const anyS = s as any;
+        const target = anyS.chatId ? `(Target: ${anyS.chatId})` : '(No target)';
+        return `ID: \`${s.id}\`\n- ${s.title} ${target}\n  ${s.recurrence}`;
+    }).join('\n\n');
+    await ctx.reply(`Active Event Series:\n${list}`, { parse_mode: 'Markdown' });
+  }
+
+  @Command('id')
+  async onId(@Ctx() ctx: Context): Promise<void> {
+    const chat = ctx.chat;
+    const threadId = ctx.message?.message_thread_id;
+    
+    let msg = `Chat ID: \`${chat?.id}\`\nType: ${chat?.type}`;
+    if (threadId) {
+        msg += `\nTopic ID: \`${threadId}\``;
+    }
+    
+    await ctx.reply(msg, { parse_mode: 'Markdown' });
   }
 
   @Command('create')
@@ -120,21 +151,40 @@ export class TelegramService {
 
     const message = ctx.message as any;
     const text = message.text || '';
-    const args = this.parseQuotedArgs(text).slice(1); // Remove command
+    const args = text.replace('/create', '').trim();
+    
+    // Try Key-Value parsing first
+    let kv = this.parseKeyValueArgs(args);
+    let title, recurrence, startDateStr, group, topic;
 
-    if (args.length < 2) {
+    if (Object.keys(kv).length > 0) {
+      title = kv['title'];
+      recurrence = kv['rrule'];
+      startDateStr = kv['date'] || kv['start'];
+      group = kv['group'] || kv['chat'];
+      topic = kv['topic'];
+    } else {
+      // Fallback to positional quoted args
+      const positional = this.parseQuotedArgs(text).slice(1);
+      if (positional.length >= 2) {
+         title = positional[0];
+         recurrence = positional[1];
+         startDateStr = positional[2];
+         group = positional[3];
+         topic = positional[4];
+      }
+    }
+
+    if (!title || !recurrence) {
       await ctx.reply(
-        'Usage: /create "Title" "RRule" ["Start Date"]\n' +
-        'Example: /create "Weekly Badminton" "FREQ=WEEKLY;BYDAY=MO" "15/11/2025 18:00"'
+        'Usage (Named):\n`/create title="Weekly Yoga" rrule="FREQ=WEEKLY" date="20/01/2026 18:00"`\n\n' +
+        'Usage (Positional):\n`/create "Title" "RRule" ["Date"]`',
+        { parse_mode: 'Markdown' }
       );
       return;
     }
 
-    const title = args[0];
-    const recurrence = args[1];
-    const startDateStr = args[2]; // Optional
-
-    const validation = CreateEventSeriesSchema.safeParse({ title, recurrence });
+    const validation = CreateEventSeriesSchema.safeParse({ title, recurrence, chatId: group, topicId: topic });
     if (!validation.success) {
       await ctx.reply(`❌ Validation Error:\n${validation.error.issues.map(e => `- ${e.message}`).join('\n')}`);
       return;
@@ -148,14 +198,21 @@ export class TelegramService {
             const [d, m, y] = datePart.split('/').map(Number);
             const [h, mm] = timePart.split(':').map(Number);
             explicitStartTime = new Date(y, m - 1, d, h, mm);
-            
-            if (isNaN(explicitStartTime.getTime())) {
-                await ctx.reply('❌ Invalid date format. Use "dd/mm/yyyy HH:mm"');
-                return;
-            }
-        } else {
+        }
+        
+        if (!explicitStartTime || isNaN(explicitStartTime.getTime())) {
             await ctx.reply('❌ Invalid date format. Use "dd/mm/yyyy HH:mm"');
             return;
+        }
+    }
+
+    // Verify Group Membership if targeted
+    if (group) {
+        try {
+            await ctx.telegram.getChatMember(group, ctx.botInfo.id);
+        } catch (e) {
+             await ctx.reply(`❌ I cannot access the group \`${group}\`. Please add me safely first!`, { parse_mode: 'Markdown'});
+             return;
         }
     }
 
@@ -163,14 +220,15 @@ export class TelegramService {
       const series = await this.eventService.createSeries(account.id, {
         title,
         recurrence: recurrence,
-        // Optional: pass explicitStartTime to service if needed later
+        chatId: group ? BigInt(group) : undefined,
+        topicId: topic,
       });
       
-      if (explicitStartTime) {
-          this.logger.log(`Created series ${series.id} with start date suggestion: ${explicitStartTime}`);
-      }
+      let reply = `Created series: ${series.title}`;
+      if (group) reply += `\nTarget Group: ${group}`;
+      if (explicitStartTime) reply += `\nStart Date: ${explicitStartTime.toLocaleString()}`;
 
-      await ctx.reply(`Created series: ${series.title}`);
+      await ctx.reply(reply);
     } catch (error) {
       await ctx.reply(`Error creating series: ${error.message}`);
     }
@@ -184,13 +242,26 @@ export class TelegramService {
       return;
     }
 
+    const message = ctx.message as any;
+    const text = message.text || '';
+    const args = this.parseQuotedArgs(text).slice(1);
+    const seriesId = args[0];
+
     const activeSeries = await this.eventService.getActiveSeries(account.id);
     if (activeSeries.length === 0) {
-      await ctx.reply('No active series to announce.');
+      await ctx.reply('No active series found.');
       return;
     }
 
-    const series = activeSeries[0];
+    const series = seriesId 
+        ? activeSeries.find(s => s.id === seriesId)
+        : activeSeries[0];
+
+    if (!series) {
+        await ctx.reply('Series not found or inactive.');
+        return;
+    }
+
     const instance = (series as any).instances?.[0];
 
     if (!instance) {
