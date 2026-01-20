@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { RRule } from 'rrule';
 
 @Injectable()
 export class SchedulerService {
@@ -33,17 +32,25 @@ export class SchedulerService {
     }
   }
 
-  private async processSeries(series: any, start: Date, end: Date) {
+  public async processSeries(series: any, start: Date = new Date(), end?: Date) {
+    const horizon = end || new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
     // Use rrulestr for advanced iCal support (multiple RRULEs, EXRULEs, etc.)
-    const { rrulestr } = require('rrule');
+    const { rrulestr, RRule } = require('rrule');
     let rule: any;
     
-    if (typeof series.recurrence === 'string') {
+    // Prisma Json fields come back as strings or objects
+    const rRuleSrc = typeof series.recurrence === 'string' 
+        ? series.recurrence 
+        : (series.recurrence?.toString() || '');
+
+    if (rRuleSrc) {
       try {
-        rule = rrulestr(series.recurrence, { dtstart: series.createdAt });
+        const hasDtStart = rRuleSrc.includes('DTSTART');
+        rule = rrulestr(rRuleSrc, hasDtStart ? {} : { dtstart: series.createdAt });
       } catch (e) {
         // Fallback to basic parsing if it's just the rule part
-        rule = RRule.fromString(series.recurrence);
+        rule = RRule.fromString(rRuleSrc);
       }
     } else {
       rule = new RRule({

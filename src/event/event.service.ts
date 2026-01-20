@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SchedulerService } from '../scheduler/scheduler.service';
 
 @Injectable()
 export class EventService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly schedulerService: SchedulerService,
+  ) {}
 
   async createSeries(accountId: string, data: {
     title: string;
@@ -22,7 +26,7 @@ export class EventService {
       throw new NotFoundException(`Account ${accountId} not found`);
     }
 
-    return (this.prisma.eventSeries as any).create({
+    const series = await (this.prisma.eventSeries as any).create({
       data: {
         accountId,
         title: data.title,
@@ -33,6 +37,11 @@ export class EventService {
         topicId: data.topicId,
       },
     });
+
+    // Trigger immediate materialization
+    await this.schedulerService.processSeries(series);
+
+    return series;
   }
 
   async getActiveSeries(accountId: string) {
