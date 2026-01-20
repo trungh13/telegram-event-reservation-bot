@@ -71,6 +71,11 @@ export class AccountService {
       throw new UnauthorizedException('Invalid API key');
     }
 
-    return apiKey.account;
+  async getAccountForUser(tgUserId: bigint) {
+    const binding = await this.prisma.accountUserBinding.findFirst({
+      where: { telegramUserId: tgUserId },
+      include: { account: true },
+    });
+    return binding?.account || null;
   }
 }
