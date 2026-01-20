@@ -63,6 +63,9 @@ export class TelegramService {
   }
 
   private async bindUserHelper(ctx: Context, token: string) {
+    const from = ctx.from;
+    this.logger.log(`Binding attempt: User ${from?.id} (@${from?.username}) with token ${token}`);
+
     try {
       const account = await this.accountService.validateApiKey(token);
       await this.accountService.bindUserToAccount(account.id, {
