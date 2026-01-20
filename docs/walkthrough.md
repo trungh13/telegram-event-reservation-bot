@@ -49,6 +49,41 @@ pnpm test
    - Use `/create Yoga @ FREQ=DAILY`
    - Use `/announce` and vote!
 
+### 5. Manual Webhook Testing (via Curl)
+You can simulate Telegram messages locally without a public URL using `curl`.
+
+#### Test Account Binding
+```bash
+# Replace <YOUR_BOT_TOKEN> with the actual token in your .env
+curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "update_id": 1000,
+    "message": {
+      "message_id": 1,
+      "from": { "id": 12345678, "first_name": "Tester", "username": "tester" },
+      "chat": { "id": 12345678, "type": "private" },
+      "date": 1618822500,
+      "text": "/start sk_YOUR_KEY_HERE"
+    }
+  }'
+```
+
+#### Test Listing Series
+```bash
+curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "update_id": 1001,
+    "message": {
+      "message_id": 2,
+      "from": { "id": 12345678, "first_name": "Tester" },
+      "chat": { "id": 12345678, "type": "private" },
+      "text": "/list"
+    }
+  }'
+```
+
 ## Next Steps: Phase 2 (Hardening)
 - Integration tests with a real database in CI.
 - Better error handling and input validation (Zod/Class-validator).
