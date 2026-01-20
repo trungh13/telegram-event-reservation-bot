@@ -18,6 +18,16 @@ export class TelegramService {
     private readonly participationService: ParticipationService,
   ) {}
 
+  private get isDevMode(): boolean {
+    return process.env.ENV === 'dev';
+  }
+
+  private debug(message: string, ...args: unknown[]): void {
+    if (this.isDevMode) {
+      this.logger.debug(`[Debug] ${message}`, ...args);
+    }
+  }
+
   @Start()
   async onStart(@Ctx() ctx: Context): Promise<void> {
     const message = (ctx.message as any) || {};
@@ -180,11 +190,18 @@ export class TelegramService {
     }
 
     if (!title || !recurrence) {
+      this.debug(`Missing required fields: title=${title}, recurrence=${recurrence}`);
       await ctx.reply(
-        'Usage (Named):\n`/create title="Weekly Yoga" rrule="FREQ=WEEKLY" date="20/01/2026 18:00"`\n\n' +
-        'Usage (Positional):\n`/create "Title" "RRule" ["Date"]`',
+        'Usage (Named):\n`/create title="Weekly Yoga" rrule="FREQ=WEEKLY" group="-100..." date="20/01/2026 18:00"`\n\n' +
+        '⚠️ `group` is required! Use `/id` in a group to get its ID.',
         { parse_mode: 'Markdown' }
       );
+      return;
+    }
+
+    if (!group) {
+      this.debug(`Missing group parameter for: ${title}`);
+      await ctx.reply('❌ `group` is required. Use `/id` in a group to get its ID, then pass it as `group="-100..."`', { parse_mode: 'Markdown' });
       return;
     }
 
