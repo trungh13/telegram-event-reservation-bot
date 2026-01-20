@@ -14,7 +14,7 @@ describe('TelegramService', () => {
   const mockBot = {
     telegram: {
       sendMessage: jest.fn(),
-      getChatMember: jest.fn(),
+      getChatMember: jest.fn().mockResolvedValue({ status: 'member' }),
     },
     botInfo: { id: 999 },
   };
@@ -62,37 +62,28 @@ describe('TelegramService', () => {
   });
 
   describe('onCreate (/create)', () => {
-    it('should validate invalid input', async () => {
-      const ctx = createCtx('/create title="Yoga"'); // missing rrule
-      mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
+    it('should require group parameter', async () => {
+      const ctx = createCtx('/create title="Yoga" rrule="FREQ=DAILY"'); // missing group
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
 
       await service.onCreate(ctx);
-      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Usage (Named)'));
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('`group` is required'),
+        expect.anything()
+      );
     });
 
-    it('should support named arguments', async () => {
-      const ctx = createCtx('/create title="Yoga Named" rrule="FREQ=DAILY"');
+    it('should support named arguments with group', async () => {
+      const ctx = createCtx('/create title="Yoga" rrule="FREQ=DAILY" group="-100123"');
       mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
-      mockEventService.createSeries.mockResolvedValue({ id: '123', title: 'Yoga Named' });
+      mockEventService.createSeries.mockResolvedValue({ id: '123', title: 'Yoga' });
 
       await service.onCreate(ctx);
 
       expect(mockEventService.createSeries).toHaveBeenCalledWith('acc_123', expect.objectContaining({
-        title: 'Yoga Named',
+        title: 'Yoga',
         recurrence: 'FREQ=DAILY',
-      }));
-    });
-
-    it('should support positional arguments', async () => {
-      const ctx = createCtx('/create "Yoga Positional" "FREQ=WEEKLY"');
-      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_456' });
-      mockEventService.createSeries.mockResolvedValue({ id: '124', title: 'Yoga Positional' });
-
-      await service.onCreate(ctx);
-
-      expect(mockEventService.createSeries).toHaveBeenCalledWith('acc_456', expect.objectContaining({
-        title: 'Yoga Positional',
-        recurrence: 'FREQ=WEEKLY',
       }));
     });
   });
