@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TelegramUserService } from '../telegram-user/telegram-user.service';
 
 @Injectable()
 export class ParticipationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly telegramUser: TelegramUserService,
+  ) {}
 
   async recordParticipation(data: {
     instanceId: string;
@@ -25,21 +29,8 @@ export class ParticipationService {
       throw new NotFoundException(`Event instance ${data.instanceId} not found`);
     }
 
-    // 2. Upsert telegram user
-    await this.prisma.telegramUser.upsert({
-      where: { id: data.telegramUser.id },
-      create: {
-        id: data.telegramUser.id,
-        username: data.telegramUser.username,
-        firstName: data.telegramUser.firstName,
-        lastName: data.telegramUser.lastName,
-      },
-      update: {
-        username: data.telegramUser.username,
-        firstName: data.telegramUser.firstName,
-        lastName: data.telegramUser.lastName,
-      },
-    });
+    // 2. Ensure Telegram user exists
+    await this.telegramUser.ensureUser(data.telegramUser);
 
     // 3. Create participation log entry
     return this.prisma.participationLog.create({
