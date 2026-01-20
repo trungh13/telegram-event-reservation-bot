@@ -2,23 +2,27 @@ import { Module } from '@nestjs/common';
 import { TelegramService } from './telegram.service';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TelegramController } from './telegram.controller';
 
 @Module({
   imports: [
     TelegrafModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        token: configService.get<string>('TELEGRAM_BOT_TOKEN') || 'CHANGE_ME',
-        launchOptions: {
-           // We will use webhook later, but for dev polling is fine if token is set.
-           // For now, let's stick to default/polling unless webhook is explicitly requested in plan to start immediately.
-           // The plan said "Telegram Webhook Integration".
-           // So we should configure webhook.
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const token = configService.get<string>('TELEGRAM_BOT_TOKEN') || 'CHANGE_ME';
+        if (token === 'CHANGE_ME') {
+           console.warn('Telegram token not set, skipping bot launch.');
+           return { token, options: {}, launchOptions: false };
+        }
+        return {
+          token,
+          launchOptions: {}, 
+        };
+      },
       inject: [ConfigService],
     }),
   ],
+  controllers: [TelegramController],
   providers: [TelegramService],
   exports: [TelegramService],
 })
