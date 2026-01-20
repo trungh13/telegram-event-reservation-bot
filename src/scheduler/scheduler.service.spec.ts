@@ -17,6 +17,7 @@ describe('SchedulerService', () => {
   let service: SchedulerService;
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SchedulerService,
