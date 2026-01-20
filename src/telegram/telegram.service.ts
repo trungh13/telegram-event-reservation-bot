@@ -136,10 +136,14 @@ export class TelegramService {
 
     const list = series.map(s => {
         const anyS = s as any;
-        const target = anyS.chatId ? `(Target: ${anyS.chatId})` : '(No target)';
-        return `ID: \`${s.id}\`\n- ${s.title} ${target}\n  ${s.recurrence}`;
-    }).join('\n\n');
-    await ctx.reply(`Active Event Series:\n${list}`, { parse_mode: 'Markdown' });
+        const target = anyS.chatId ? `🎯 Target: \`${anyS.chatId}\`` : '⚠️ No target';
+        return `📌 **${s.title}**\n` +
+               `ID: \`${s.id}\`\n` +
+               `${target}\n` +
+               `🔁 \`${s.recurrence}\``;
+    }).join('\n\n---\n\n');
+
+    await ctx.reply(`**Active Event Series:**\n\n${list}\n\n💡 _Tip: Use \`/announce <ID>\` to post a specific series._`, { parse_mode: 'Markdown' });
   }
 
   @Command('id')
