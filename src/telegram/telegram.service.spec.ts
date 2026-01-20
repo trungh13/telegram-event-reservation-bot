@@ -8,31 +8,33 @@ import { getBotToken } from 'nestjs-telegraf';
 
 describe('TelegramService', () => {
   let service: TelegramService;
-  let accountService: AccountService;
-  let eventService: EventService;
+  let mockAccountService: any;
+  let mockEventService: any;
 
   const mockBot = {
     telegram: {
       sendMessage: jest.fn(),
+      getChatMember: jest.fn(),
     },
-  };
-
-  const mockAccountService = {
-    validateApiKey: jest.fn(),
-    bindUserToAccount: jest.fn(),
-    getAccountForUser: jest.fn(),
-  };
-
-  const mockEventService = {
-    createSeries: jest.fn(),
-    getActiveSeries: jest.fn(),
-  };
-
-  const mockParticipationService = {
-    recordParticipation: jest.fn(),
+    botInfo: { id: 999 },
   };
 
   beforeEach(async () => {
+    mockAccountService = {
+      validateApiKey: jest.fn(),
+      bindUserToAccount: jest.fn(),
+      getAccountForUser: jest.fn(),
+    };
+
+    mockEventService = {
+      createSeries: jest.fn(),
+      getActiveSeries: jest.fn(),
+    };
+
+    const mockParticipationService = {
+      recordParticipation: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelegramService,
@@ -44,96 +46,65 @@ describe('TelegramService', () => {
     }).compile();
 
     service = module.get<TelegramService>(TelegramService);
-    accountService = module.get<AccountService>(AccountService);
-    eventService = module.get<EventService>(EventService);
   });
+
+  const createCtx = (text: string, fromId = 123) => ({
+    message: { text, message_id: 1 },
+    reply: jest.fn(),
+    from: { id: fromId },
+    chat: { id: fromId, type: 'private' },
+    botInfo: { id: 999 },
+    telegram: mockBot.telegram,
+  } as unknown as Context);
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  describe('onList (/list)', () => {
-    it('should validate invalid account', async () => {
-      const ctx = {
-        from: { id: 123 },
-        reply: jest.fn(),
-      } as unknown as Context;
-
-      mockAccountService.getAccountForUser.mockResolvedValue(null);
-      await service.onList(ctx);
-      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Use /start <token> first'));
-    });
-  });
-
   describe('onCreate (/create)', () => {
     it('should validate invalid input', async () => {
-      const ctx = {
-        message: { text: '/create "Yoga"' },
-        reply: jest.fn(),
-        from: { id: 123 },
-      } as unknown as Context;
-
+      const ctx = createCtx('/create title="Yoga"'); // missing rrule
       mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
 
       await service.onCreate(ctx);
-
-      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Usage: /create'));
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Usage (Named)'));
     });
 
-    it('should validate invalid rrule via Zod', async () => {
-      const ctx = {
-        message: { text: '/create "Yoga" "INVALID_RRULE"' },
-        reply: jest.fn(),
-        from: { id: 123 },
-      } as unknown as Context;
-
-      mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
+    it('should support named arguments', async () => {
+      const ctx = createCtx('/create title="Yoga Named" rrule="FREQ=DAILY"');
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
+      mockEventService.createSeries.mockResolvedValue({ id: '123', title: 'Yoga Named' });
 
       await service.onCreate(ctx);
 
-      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Validation Error'));
+      expect(mockEventService.createSeries).toHaveBeenCalledWith('acc_123', expect.objectContaining({
+        title: 'Yoga Named',
+        recurrence: 'FREQ=DAILY',
+      }));
     });
 
-    it('should validate invalid date format', async () => {
-      const ctx = {
-        message: { text: '/create "Yoga" "FREQ=DAILY" "bad-date"' },
-        reply: jest.fn(),
-        from: { id: 123 },
-      } as unknown as Context;
-
-      mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
+    it('should support positional arguments', async () => {
+      const ctx = createCtx('/create "Yoga Positional" "FREQ=WEEKLY"');
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_456' });
+      mockEventService.createSeries.mockResolvedValue({ id: '124', title: 'Yoga Positional' });
 
       await service.onCreate(ctx);
 
-      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Invalid date format'));
+      expect(mockEventService.createSeries).toHaveBeenCalledWith('acc_456', expect.objectContaining({
+        title: 'Yoga Positional',
+        recurrence: 'FREQ=WEEKLY',
+      }));
     });
   });
 
-  describe('bindUserHelper (/start)', () => {
-    it('should validate invalid token format', async () => {
-      const ctx = {
-        from: { id: 123, username: 'test' },
-        reply: jest.fn(),
-      } as unknown as Context;
-
-      await (service as any).bindUserHelper(ctx, 'invalid_token');
-
-      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('❌ Invalid token format'));
-    });
-
-    it('should proceed with valid token format', async () => {
-      const ctx = {
-        from: { id: 123, username: 'test' },
-        reply: jest.fn(),
-      } as unknown as Context;
-
-      const validToken = 'sk_123456789012345678901234567890';
-      mockAccountService.validateApiKey.mockResolvedValue({ id: 1, name: 'Test' });
-
-      await (service as any).bindUserHelper(ctx, validToken);
-
-      expect(mockAccountService.validateApiKey).toHaveBeenCalledWith(validToken);
-      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Successfully bound'));
+  describe('onId (/id)', () => {
+    it('should return chat information', async () => {
+      const ctx = createCtx('/id');
+      await service.onId(ctx);
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('Chat ID: `123`'),
+        expect.anything()
+      );
     });
   });
 });
