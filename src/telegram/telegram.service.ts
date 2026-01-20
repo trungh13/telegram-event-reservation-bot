@@ -52,7 +52,11 @@ export class TelegramService {
       `• \`FREQ\`: DAILY, WEEKLY, MONTHLY\n` +
       `• \`BYDAY\`: MO, TU, WE... (comma separated)\n` +
       `• \`INTERVAL\`: 2 (every 2nd week)\n` +
-      `• \`COUNT\`: 10 (stop after 10 sessions)`;
+      `• \`COUNT\`: 10 (stop after 10 sessions)\n\n` +
+      `**Advanced Patterns:**\n` +
+      `• **Multiple days**: \`BYDAY=MO,WE,FR\`\n` +
+      `• **Specific days of month**: \`FREQ=MONTHLY;BYMONTHDAY=1,15\`\n` +
+      `• **Complex (iCal)**: Provide full iCal block with multiple \`RRULE:\` lines for different schedules in one series.`;
 
     await ctx.reply(helpText, { parse_mode: 'Markdown' });
   }

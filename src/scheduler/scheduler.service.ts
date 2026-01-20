@@ -34,15 +34,21 @@ export class SchedulerService {
   }
 
   private async processSeries(series: any, start: Date, end: Date) {
-    // Basic rrule integration. Expects series.recurrence to be an RRule string or options
-    let rule: RRule;
+    // Use rrulestr for advanced iCal support (multiple RRULEs, EXRULEs, etc.)
+    const { rrulestr } = require('rrule');
+    let rule: any;
+    
     if (typeof series.recurrence === 'string') {
-      rule = RRule.fromString(series.recurrence);
+      try {
+        rule = rrulestr(series.recurrence, { dtstart: series.createdAt });
+      } catch (e) {
+        // Fallback to basic parsing if it's just the rule part
+        rule = RRule.fromString(series.recurrence);
+      }
     } else {
-      // Map JSON to RRule options if needed, or assume it's already compatible
       rule = new RRule({
         ...series.recurrence,
-        dtstart: series.createdAt, // Fallback start date
+        dtstart: series.createdAt,
       });
     }
 

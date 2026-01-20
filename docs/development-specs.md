@@ -49,6 +49,11 @@ The bot must distinguish between Private and Group contexts.
     - `rrule.all()` starts searching from `20.01`.
     - First match: `26.01.2026` (Monday).
     - This matches user expectation: "Target next possible BYDAY".
+- **Combining Multiple Rules**:
+    - **Multiple Days**: Use commas: `BYDAY=MO,WE,FR`.
+    - **Multiple Schedules**: Provide a full iCal block with multiple `RRULE:` lines.
+    - **Exclusions**: Use `EXRULE` or `EXDATE`.
+    - **Logic**: `SchedulerService` uses `rrulestr` to parse these complex blocks into an `RRuleSet`.
 
 ### 3. Data Model Updates
 - **EventSeries**: Add `chatId` (BigInt), `topicId` (String/Int).
