@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectBot, Update, Start, Help, On, Ctx } from 'nestjs-telegraf';
+import { InjectBot, Update, Start, Help, Ctx } from 'nestjs-telegraf';
 import { Context, Telegraf } from 'telegraf';
 import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
@@ -54,7 +54,60 @@ export class TelegramService {
       'Available commands:\n' +
       '/start - Initialize or bind account\n' +
       '/help - Show this help\n' +
-      '/list - List active events\n' +
-      '/create - Create a new event (Admins only)'
+      '/list - List your active event series\n' +
+      '/create <title> @ <rrule> - Create a new event series (Admins only)'
     );
   }
+
+  @Start()
+  async onList(@Ctx() ctx: Context) {
+    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    if (!account) {
+      return ctx.reply('You are not bound to any account. Use /start <token> first.');
+    }
+
+    const series = await this.eventService.getActiveSeries(account.id);
+    if (series.length === 0) {
+      return ctx.reply('No active event series found.');
+    }
+
+    const list = series.map(s => `- ${s.title} (${s.recurrence})`).join('\n');
+    await ctx.reply(`Active Event Series:\n${list}`);
+  }
+
+  // Handle /list via command decorator as well
+  @On('text')
+  async onMessage(@Ctx() ctx: Context) {
+    const message = ctx.message as any;
+    const text = message.text || '';
+
+    if (text.startsWith('/list')) {
+        return this.onList(ctx);
+    }
+
+    if (text.startsWith('/create')) {
+        const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+        if (!account) {
+          return ctx.reply('Admin only. Link your account first.');
+        }
+
+        // Simple parser: /create Weekly Yoga @ FREQ=WEEKLY;BYDAY=MO
+        const content = text.replace('/create', '').trim();
+        const [title, recurrence] = content.split('@').map(s => s.trim());
+
+        if (!title || !recurrence) {
+          return ctx.reply('Usage: /create <title> @ <rrule>\nExample: /create Yoga @ FREQ=WEEKLY;BYDAY=MO');
+        }
+
+        try {
+          const series = await this.eventService.createSeries(account.id, {
+            title,
+            recurrence: recurrence,
+          });
+          await ctx.reply(`Created series: ${series.title}`);
+        } catch (error) {
+          await ctx.reply(`Error creating series: ${error.message}`);
+        }
+    }
+  }
+}
