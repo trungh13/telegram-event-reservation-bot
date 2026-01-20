@@ -3,6 +3,8 @@ import { z } from 'zod';
 export const CreateEventSeriesSchema = z.object({
   title: z.string().min(1, 'Title cannot be empty').max(100, 'Title is too long'),
   recurrence: z.string().regex(/^FREQ=/i, 'Invalid recurrence rule. Must start with FREQ='),
+  chatId: z.string().optional(), // Passed as string from args
+  topicId: z.string().optional(),
 });
 
 export const BindAccountSchema = z.object({

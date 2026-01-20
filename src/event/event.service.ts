@@ -10,6 +10,8 @@ export class EventService {
     description?: string;
     timezone?: string;
     recurrence: any;
+    chatId?: bigint;
+    topicId?: string;
   }) {
     // Verify account exists
     const account = await this.prisma.account.findUnique({
@@ -20,13 +22,15 @@ export class EventService {
       throw new NotFoundException(`Account ${accountId} not found`);
     }
 
-    return this.prisma.eventSeries.create({
+    return (this.prisma.eventSeries as any).create({
       data: {
         accountId,
         title: data.title,
         description: data.description,
         timezone: data.timezone ?? 'Europe/Helsinki',
         recurrence: data.recurrence,
+        chatId: data.chatId,
+        topicId: data.topicId,
       },
     });
   }
