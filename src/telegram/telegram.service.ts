@@ -25,39 +25,58 @@ export class TelegramService {
     const token = args.length > 1 ? args[1] : null;
 
     if (token) {
-      try {
-        const account = await this.accountService.validateApiKey(token);
-        await this.accountService.bindUserToAccount(account.id, {
-          id: BigInt(ctx.from!.id),
-          username: ctx.from!.username,
-          firstName: ctx.from!.first_name,
-          lastName: ctx.from!.last_name,
-        });
-
-        await ctx.reply(`Successfully bound to account: ${account.name}! You are now an admin.`);
-      } catch (error) {
-        this.logger.error(`Failed to bind user: ${error.message}`);
-        await ctx.reply(`Invalid or expired token. Please check your link.`);
-      }
-    } else {
-      await ctx.reply(
-        'Welcome! This bot is for event scheduling.\n\n' +
-        'If you are an admin, use the link provided when you created your account to bind your user.\n' +
-        'If you are a participant, stay tuned for event announcements!'
-      );
+      return this.bindUserHelper(ctx, token);
     }
+
+    await ctx.reply(
+      'Welcome to the Event Booking System!\n\n' +
+      'To bind your account, use /token <api_key> or click your invite link.\n' +
+      'If you are a participant, stay tuned for event announcements!'
+    );
+  }
+
+  @Command('token')
+  async onToken(@Ctx() ctx: Context): Promise<any> {
+    const message = ctx.message as any;
+    const text = message.text || '';
+    const args = text.split(' ');
+    const token = args.length > 1 ? args[1] : null;
+
+    if (!token) {
+      return ctx.reply('Usage: /token <api_key>');
+    }
+
+    return this.bindUserHelper(ctx, token);
   }
 
   @Help()
   async onHelp(@Ctx() ctx: Context): Promise<any> {
     await ctx.reply(
       'Available commands:\n' +
-      '/start - Initialize or bind account\n' +
+      '/start - Welcome message\n' +
+      '/token <key> - Bind your account (or use deep link)\n' +
       '/help - Show this help\n' +
       '/list - List your active event series\n' +
       '/create <title> @ <rrule> - Create a new event series (Admins only)\n' +
       '/announce - Post the next upcoming event (Admins only)'
     );
+  }
+
+  private async bindUserHelper(ctx: Context, token: string) {
+    try {
+      const account = await this.accountService.validateApiKey(token);
+      await this.accountService.bindUserToAccount(account.id, {
+        id: BigInt(ctx.from!.id),
+        username: ctx.from!.username,
+        firstName: ctx.from!.first_name,
+        lastName: ctx.from!.last_name,
+      });
+
+      await ctx.reply(`Successfully bound to account: ${account.name}! You are now an admin.`);
+    } catch (error) {
+      this.logger.error(`Failed to bind user: ${error.message}`);
+      await ctx.reply(`Invalid or expired token. Please check your link or copy the key correctly.`);
+    }
   }
 
   @Command('list')
