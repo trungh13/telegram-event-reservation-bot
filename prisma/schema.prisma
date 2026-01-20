@@ -66,6 +66,8 @@ model EventSeries {
   description String?
   timezone    String   @default("Europe/Helsinki")
   recurrence  Json     /// Recurrence rules (RRule or custom)
+  chatId      BigInt?  /// Telegram Group ID (if targeted)
+  topicId     String?  /// Telegram Topic ID (if targeted)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
