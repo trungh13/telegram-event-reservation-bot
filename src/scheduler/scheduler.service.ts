@@ -39,18 +39,13 @@ export class SchedulerService {
     const { rrulestr, RRule } = require('rrule');
     let rule: any;
     
-    // Prisma Json fields come back as strings or objects
-    const rRuleSrc = typeof series.recurrence === 'string' 
-        ? series.recurrence 
-        : (series.recurrence?.toString() || '');
-
-    if (rRuleSrc) {
+    if (typeof series.recurrence === 'string') {
       try {
-        const hasDtStart = rRuleSrc.includes('DTSTART');
-        rule = rrulestr(rRuleSrc, hasDtStart ? {} : { dtstart: series.createdAt });
+        const hasDtStart = series.recurrence.includes('DTSTART');
+        rule = rrulestr(series.recurrence, hasDtStart ? {} : { dtstart: series.createdAt });
       } catch (e) {
         // Fallback to basic parsing if it's just the rule part
-        rule = RRule.fromString(rRuleSrc);
+        rule = RRule.fromString(series.recurrence);
       }
     } else {
       rule = new RRule({
@@ -59,7 +54,7 @@ export class SchedulerService {
       });
     }
 
-    const dates = rule.between(start, end);
+    const dates = rule.between(start, horizon, true); // true for inc: inclusive
 
     for (const date of dates) {
       // Ensure idempotency: check if instance already exists at this time

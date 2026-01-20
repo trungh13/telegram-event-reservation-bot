@@ -166,9 +166,11 @@ export class TelegramService {
     const message = ctx.message as any;
     const text = message.text || '';
     const args = text.replace('/create', '').trim();
+    this.debug(`onCreate - args: "${args}"`);
     
     // Try Key-Value parsing first
     let kv = this.parseKeyValueArgs(args);
+    this.debug(`onCreate - Parsed KV: ${JSON.stringify(kv)}`);
     let title, recurrence, startDateStr, group, topic;
 
     if (Object.keys(kv).length > 0) {
@@ -274,6 +276,7 @@ export class TelegramService {
     const text = message.text || '';
     const args = this.parseQuotedArgs(text).slice(1);
     const seriesId = args[0];
+    this.debug(`onAnnounce - seriesId arg: ${seriesId}`);
 
     const activeSeries = await this.eventService.getActiveSeries(account.id);
     if (activeSeries.length === 0) {
@@ -291,6 +294,7 @@ export class TelegramService {
     }
 
     const instance = (series as any).instances?.[0];
+    this.debug(`onAnnounce - Found series: ${series.title}, Instances count: ${(series as any).instances?.length}`);
 
     if (!instance) {
       await ctx.reply('No instances materialized yet.');

@@ -54,7 +54,7 @@ export class EventService {
         instances: {
           where: {
             startTime: {
-              gte: new Date(),
+              gte: new Date(Date.now() - 5 * 60 * 1000), // 5 min buffer
             },
           },
           take: 5,
