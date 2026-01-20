@@ -19,33 +19,51 @@ export class TelegramService {
   ) {}
 
   @Start()
-  async onStart(@Ctx() ctx: Context): Promise<any> {
-    const message = ctx.message as any;
+  async onStart(@Ctx() ctx: Context): Promise<void> {
+    const message = (ctx.message as any) || {};
     const text = message.text || '';
     const args = text.split(' ');
     const token = args.length > 1 ? args[1] : null;
 
     if (token) {
-      return this.bindUserHelper(ctx, token);
+      await this.bindUserHelper(ctx, token);
+      return;
     }
 
-    await ctx.reply(
-      'Welcome to the Event Booking System!\n\n' +
-      'To bind your account, use /start <api_key> or click your invite link.\n' +
-      'If you are a participant, stay tuned for event announcements!'
-    );
+    await this.sendHelpMessage(ctx, 'Welcome to the Event Booking System! 📅');
   }
 
   @Help()
-  async onHelp(@Ctx() ctx: Context): Promise<any> {
-    await ctx.reply(
-      'Available commands:\n' +
-      '/start <key> - Initialize or bind account\n' +
-      '/help - Show this help\n' +
-      '/list - List your active event series\n' +
-      '/create <title> @ <rrule> - Create a new event series (Admins only)\n' +
-      '/announce - Post the next upcoming event (Admins only)'
-    );
+  async onHelp(@Ctx() ctx: Context): Promise<void> {
+    await this.sendHelpMessage(ctx, 'Event Booking System Help 📖');
+  }
+
+  private async sendHelpMessage(ctx: Context, title: string) {
+    const helpText = `${title}\n\n` +
+      `**Commands:**\n` +
+      `• \`/start <key>\` - Bind your account (admins only)\n` +
+      `• \`/create "Title" "RRule" ["Start Date"]\` - Create event series\n` +
+      `• \`/list\` - List active series\n` +
+      `• \`/announce\` - Post next event with voting buttons\n\n` +
+      `**Example create:**\n` +
+      `\`/create "Yoga" "FREQ=WEEKLY;BYDAY=MO" "25/01/2026 18:00"\`\n\n` +
+      `**RRule Cheat Sheet:**\n` +
+      `• \`FREQ\`: DAILY, WEEKLY, MONTHLY\n` +
+      `• \`BYDAY\`: MO, TU, WE... (comma separated)\n` +
+      `• \`INTERVAL\`: 2 (every 2nd week)\n` +
+      `• \`COUNT\`: 10 (stop after 10 sessions)`;
+
+    await ctx.reply(helpText, { parse_mode: 'Markdown' });
+  }
+
+  private parseQuotedArgs(text: string): string[] {
+    const regex = /"([^"]*)"|(\S+)/g;
+    const args: string[] = [];
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      args.push(match[1] || match[2]);
+    }
+    return args;
   }
 
   private async bindUserHelper(ctx: Context, token: string) {
@@ -102,29 +120,56 @@ export class TelegramService {
 
     const message = ctx.message as any;
     const text = message.text || '';
-    const content = text.replace('/create', '').trim();
-    if (!content) {
-      await ctx.reply('Usage: /create <title> @ <rrule>\nExample: /create Yoga @ FREQ=WEEKLY;BYDAY=MO');
+    const args = this.parseQuotedArgs(text).slice(1); // Remove command
+
+    if (args.length < 2) {
+      await ctx.reply(
+        'Usage: /create "Title" "RRule" ["Start Date"]\n' +
+        'Example: /create "Weekly Badminton" "FREQ=WEEKLY;BYDAY=MO" "15/11/2025 18:00"'
+      );
       return;
     }
 
-    const [title, recurrence] = content.split('@').map(s => s.trim());
-    if (!title || !recurrence) {
-      await ctx.reply('Usage: /create <title> @ <rrule>\nExample: /create Yoga @ FREQ=WEEKLY;BYDAY=MO');
-      return;
-    }
+    const title = args[0];
+    const recurrence = args[1];
+    const startDateStr = args[2]; // Optional
 
     const validation = CreateEventSeriesSchema.safeParse({ title, recurrence });
     if (!validation.success) {
-      await ctx.reply(`❌ Validation Input Error:\n${validation.error.issues.map(e => `- ${e.message}`).join('\n')}`);
+      await ctx.reply(`❌ Validation Error:\n${validation.error.issues.map(e => `- ${e.message}`).join('\n')}`);
       return;
+    }
+
+    let explicitStartTime: Date | undefined = undefined;
+    if (startDateStr) {
+        // Parse dd/mm/yyyy HH:mm
+        const [datePart, timePart] = startDateStr.split(' ');
+        if (datePart && timePart) {
+            const [d, m, y] = datePart.split('/').map(Number);
+            const [h, mm] = timePart.split(':').map(Number);
+            explicitStartTime = new Date(y, m - 1, d, h, mm);
+            
+            if (isNaN(explicitStartTime.getTime())) {
+                await ctx.reply('❌ Invalid date format. Use "dd/mm/yyyy HH:mm"');
+                return;
+            }
+        } else {
+            await ctx.reply('❌ Invalid date format. Use "dd/mm/yyyy HH:mm"');
+            return;
+        }
     }
 
     try {
       const series = await this.eventService.createSeries(account.id, {
         title,
         recurrence: recurrence,
+        // Optional: pass explicitStartTime to service if needed later
       });
+      
+      if (explicitStartTime) {
+          this.logger.log(`Created series ${series.id} with start date suggestion: ${explicitStartTime}`);
+      }
+
       await ctx.reply(`Created series: ${series.title}`);
     } catch (error) {
       await ctx.reply(`Error creating series: ${error.message}`);

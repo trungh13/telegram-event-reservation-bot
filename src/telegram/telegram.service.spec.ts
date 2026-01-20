@@ -53,17 +53,14 @@ describe('TelegramService', () => {
   });
 
   describe('onList (/list)', () => {
-    it('should validate invalid input', async () => {
+    it('should validate invalid account', async () => {
       const ctx = {
-        message: { text: '/list' },
-        reply: jest.fn(),
         from: { id: 123 },
+        reply: jest.fn(),
       } as unknown as Context;
 
       mockAccountService.getAccountForUser.mockResolvedValue(null);
-
       await service.onList(ctx);
-
       expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Use /start <token> first'));
     });
   });
@@ -71,7 +68,7 @@ describe('TelegramService', () => {
   describe('onCreate (/create)', () => {
     it('should validate invalid input', async () => {
       const ctx = {
-        message: { text: '/create InvalidInput' },
+        message: { text: '/create "Yoga"' },
         reply: jest.fn(),
         from: { id: 123 },
       } as unknown as Context;
@@ -84,48 +81,59 @@ describe('TelegramService', () => {
     });
 
     it('should validate invalid rrule via Zod', async () => {
-        const ctx = {
-          message: { text: '/create Yoga @ INVALID_RRULE' },
-          reply: jest.fn(),
-          from: { id: 123 },
-        } as unknown as Context;
-  
-        mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
-  
-        await service.onCreate(ctx);
-  
-        // Expect Zod validation error
-        expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Validation Input Error'));
-      });
+      const ctx = {
+        message: { text: '/create "Yoga" "INVALID_RRULE"' },
+        reply: jest.fn(),
+        from: { id: 123 },
+      } as unknown as Context;
+
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
+
+      await service.onCreate(ctx);
+
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Validation Error'));
+    });
+
+    it('should validate invalid date format', async () => {
+      const ctx = {
+        message: { text: '/create "Yoga" "FREQ=DAILY" "bad-date"' },
+        reply: jest.fn(),
+        from: { id: 123 },
+      } as unknown as Context;
+
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 1 });
+
+      await service.onCreate(ctx);
+
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Invalid date format'));
+    });
   });
 
   describe('bindUserHelper (/start)', () => {
-      it('should validate invalid token format', async () => {
-          const ctx = {
-              from: { id: 123, username: 'test' },
-              reply: jest.fn(),
-          } as unknown as Context;
+    it('should validate invalid token format', async () => {
+      const ctx = {
+        from: { id: 123, username: 'test' },
+        reply: jest.fn(),
+      } as unknown as Context;
 
-          // Access private method helper or test via public flow if possible. 
-          // Since it's private, we'll cast to any.
-          await (service as any).bindUserHelper(ctx, 'invalid_token');
+      await (service as any).bindUserHelper(ctx, 'invalid_token');
 
-          expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('❌ Invalid token format'));
-      });
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('❌ Invalid token format'));
+    });
 
-      it('should proceed with valid token format', async () => {
-        const ctx = {
-            from: { id: 123, username: 'test' },
-            reply: jest.fn(),
-        } as unknown as Context;
+    it('should proceed with valid token format', async () => {
+      const ctx = {
+        from: { id: 123, username: 'test' },
+        reply: jest.fn(),
+      } as unknown as Context;
 
-        const validToken = 'sk_123456789012345678901234567890'; // >30 chars
-        mockAccountService.validateApiKey.mockResolvedValue({ id: 1, name: 'Test' });
+      const validToken = 'sk_123456789012345678901234567890';
+      mockAccountService.validateApiKey.mockResolvedValue({ id: 1, name: 'Test' });
 
-        await (service as any).bindUserHelper(ctx, validToken);
+      await (service as any).bindUserHelper(ctx, validToken);
 
-        expect(mockAccountService.validateApiKey).toHaveBeenCalledWith(validToken);
-        expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Successfully bound'));
+      expect(mockAccountService.validateApiKey).toHaveBeenCalledWith(validToken);
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Successfully bound'));
     });
   });
 });

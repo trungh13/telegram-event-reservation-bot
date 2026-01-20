@@ -86,7 +86,7 @@ curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
 
 #### Test Creating Event Series
 ```bash
-# Valid creation
+# Valid creation with quotes and date
 curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
   -H "Content-Type: application/json" \
   -d '{
@@ -95,11 +95,11 @@ curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
       "message_id": 3,
       "from": { "id": 12345678 },
       "chat": { "id": 12345678, "type": "private" },
-      "text": "/create Yoga @ FREQ=WEEKLY;BYDAY=MO"
+      "text": "/create \"Weekly Badminton\" \"FREQ=WEEKLY;BYDAY=MO\" \"15/11/2025 18:00\""
     }
   }'
 
-# Invalid: Missing @
+# Invalid: Too few arguments
 curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
   -H "Content-Type: application/json" \
   -d '{
@@ -108,20 +108,7 @@ curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
       "message_id": 4,
       "from": { "id": 12345678 },
       "chat": { "id": 12345678, "type": "private" },
-      "text": "/create Bad Input"
-    }
-  }'
-
-# Invalid: Malformed RRULE (validation check)
-curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
-  -H "Content-Type: application/json" \
-  -d '{
-    "update_id": 1004,
-    "message": {
-      "message_id": 5,
-      "from": { "id": 12345678 },
-      "chat": { "id": 12345678, "type": "private" },
-      "text": "/create Yoga @ NOT_A_RRULE"
+      "text": "/create \"Bad Input\""
     }
   }'
 ```
