@@ -1,6 +1,7 @@
+```typescript
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectBot, Update, Start, Help, Ctx } from 'nestjs-telegraf';
-import { Context, Telegraf } from 'telegraf';
+import { InjectBot, Update, Start, Help, On, Ctx, Command, Action } from 'nestjs-telegraf';
+import { Context, Telegraf, Markup } from 'telegraf';
 import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
@@ -59,8 +60,8 @@ export class TelegramService {
     );
   }
 
-  @Start()
-  async onList(@Ctx() ctx: Context) {
+  @Command('list')
+  async onList(@Ctx() ctx: Context): Promise<any> {
     const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
     if (!account) {
       return ctx.reply('You are not bound to any account. Use /start <token> first.');
@@ -75,9 +76,9 @@ export class TelegramService {
     await ctx.reply(`Active Event Series:\n${list}`);
   }
 
-  // Handle /list via command decorator as well
+  // Handle commands and messages
   @On('text')
-  async onMessage(@Ctx() ctx: Context) {
+  async onMessage(@Ctx() ctx: Context): Promise<any> {
     const message = ctx.message as any;
     const text = message.text || '';
 
@@ -108,6 +109,69 @@ export class TelegramService {
         } catch (error) {
           await ctx.reply(`Error creating series: ${error.message}`);
         }
+    }
+
+    if (text.startsWith('/announce')) {
+        const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+        if (!account) return ctx.reply('Admin only.');
+
+        const activeSeries = await this.eventService.getActiveSeries(account.id);
+        if (activeSeries.length === 0) return ctx.reply('No active series to announce.');
+
+        // For demo, announce the first instance of the first series
+        const series = activeSeries[0];
+        const instance = series.instances[0];
+
+        if (!instance) return ctx.reply('No instances materialized yet.');
+
+        const keyboard = Markup.inlineKeyboard([
+          [
+            Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
+            Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
+            Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
+          ]
+        ]);
+
+        await ctx.reply(`📅 ${series.title}\n⏰ ${instance.startTime.toLocaleString()}\n\nWho's in?`, keyboard);
+    }
+  }
+
+  @Action(/JOIN:(.+)/)
+  async onJoin(@Ctx() ctx: Context): Promise<any> {
+    const instanceId = (ctx as any).match[1];
+    await this.recordVote(ctx, instanceId, 'JOIN');
+  }
+
+  @Action(/PLUS_ONE:(.+)/)
+  async onPlusOne(@Ctx() ctx: Context): Promise<any> {
+    const instanceId = (ctx as any).match[1];
+    await this.recordVote(ctx, instanceId, 'PLUS_ONE');
+  }
+
+  @Action(/LEAVE:(.+)/)
+  async onLeave(@Ctx() ctx: Context): Promise<any> {
+    const instanceId = (ctx as any).match[1];
+    await this.recordVote(ctx, instanceId, 'LEAVE');
+  }
+
+  private async recordVote(ctx: Context, instanceId: string, action: string) {
+    try {
+      await this.participationService.recordParticipation({
+        instanceId,
+        telegramUser: {
+          id: BigInt(ctx.from!.id),
+          username: ctx.from!.username,
+          firstName: ctx.from!.first_name,
+          lastName: ctx.from!.last_name,
+        },
+        action,
+      });
+
+      await ctx.answerCbQuery(`You ${action === 'LEAVE' ? 'left' : 'joined'}!`);
+      // Optional: Update the message with participant list
+    } catch (error) {
+      this.logger.error(`Error recording vote: ${error.message}`);
+      await ctx.answerCbQuery('Error recording vote.');
     }
   }
 }
