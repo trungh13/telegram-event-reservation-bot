@@ -39,7 +39,7 @@ ID:   ${account.id}
 key:  ${key}
 
 👇 Usage:
-telegram: /token ${key}
+telegram: /start ${key}
 Link:     https://t.me/${botName}?start=${key}
   `);
 }

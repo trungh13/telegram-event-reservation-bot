@@ -30,31 +30,16 @@ export class TelegramService {
 
     await ctx.reply(
       'Welcome to the Event Booking System!\n\n' +
-      'To bind your account, use /token <api_key> or click your invite link.\n' +
+      'To bind your account, use /start <api_key> or click your invite link.\n' +
       'If you are a participant, stay tuned for event announcements!'
     );
-  }
-
-  @Command('token')
-  async onToken(@Ctx() ctx: Context): Promise<any> {
-    const message = ctx.message as any;
-    const text = message.text || '';
-    const args = text.split(' ');
-    const token = args.length > 1 ? args[1] : null;
-
-    if (!token) {
-      return ctx.reply('Usage: /token <api_key>');
-    }
-
-    return this.bindUserHelper(ctx, token);
   }
 
   @Help()
   async onHelp(@Ctx() ctx: Context): Promise<any> {
     await ctx.reply(
       'Available commands:\n' +
-      '/start - Welcome message\n' +
-      '/token <key> - Bind your account (or use deep link)\n' +
+      '/start <key> - Initialize or bind account\n' +
       '/help - Show this help\n' +
       '/list - List your active event series\n' +
       '/create <title> @ <rrule> - Create a new event series (Admins only)\n' +
