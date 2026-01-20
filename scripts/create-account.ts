@@ -30,6 +30,7 @@ async function main() {
     },
   });
 
+  const botName = process.env.TELEGRAM_BOT_NAME || 'event_reservation_bot';
   console.log(`
 ✅ Account Created!
 ------------------
@@ -39,6 +40,7 @@ key:  ${key}
 
 👇 Usage:
 telegram: /token ${key}
+Link:     https://t.me/${botName}?start=${key}
   `);
 }
 
