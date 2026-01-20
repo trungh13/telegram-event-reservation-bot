@@ -1,1 +1,37 @@
-node_modules
+# compiled output
+/dist
+/node_modules
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# system
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# ide
+.idea
+.vscode
+*.sublime-workspace
+
+# dotenv
+.env
+.env.test
+
+# prisma
+/prisma/*.db
+/prisma/*.db-journal
+
+# postgres
+postgres_data/
+
+# coverage
+coverage/
