@@ -15,6 +15,6 @@
 - [/] **Phase 2: Hardening** <!-- id: 10 -->
     - [ ] Testing & Type Safety <!-- id: 11 -->
     - [x] Input Validation (Zod)
-    - [ ] Manual Testing Plan (Curl & Bot Flow)
+    - [x] Manual Testing Plan (Curl & Bot Flow)
 - [ ] **Phase 3: Monetization** <!-- id: 12 -->
     - [ ] Stripe Integration <!-- id: 13 -->

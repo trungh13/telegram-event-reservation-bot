@@ -84,6 +84,78 @@ curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
   }'
 ```
 
+#### Test Creating Event Series
+```bash
+# Valid creation
+curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "update_id": 1002,
+    "message": {
+      "message_id": 3,
+      "from": { "id": 12345678 },
+      "chat": { "id": 12345678, "type": "private" },
+      "text": "/create Yoga @ FREQ=WEEKLY;BYDAY=MO"
+    }
+  }'
+
+# Invalid: Missing @
+curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "update_id": 1003,
+    "message": {
+      "message_id": 4,
+      "from": { "id": 12345678 },
+      "chat": { "id": 12345678, "type": "private" },
+      "text": "/create Bad Input"
+    }
+  }'
+
+# Invalid: Malformed RRULE (validation check)
+curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "update_id": 1004,
+    "message": {
+      "message_id": 5,
+      "from": { "id": 12345678 },
+      "chat": { "id": 12345678, "type": "private" },
+      "text": "/create Yoga @ NOT_A_RRULE"
+    }
+  }'
+```
+
+#### Test Announcement
+```bash
+curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "update_id": 1005,
+    "message": {
+      "message_id": 6,
+      "from": { "id": 12345678 },
+      "chat": { "id": 12345678, "type": "private" },
+      "text": "/announce"
+    }
+  }'
+```
+
+#### Test Interactive Buttons (Action Callbacks)
+```bash
+# Simulating a user clicking ✅ JOIN on instance_id
+curl -X POST http://localhost:3000/webhook/<YOUR_BOT_TOKEN> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "update_id": 1006,
+    "callback_query": {
+      "id": "cb_1",
+      "from": { "id": 12345678, "username": "tester" },
+      "data": "JOIN:actual_instance_id_here"
+    }
+  }'
+```
+
 ## Next Steps: Phase 2 (Hardening)
 - Integration tests with a real database in CI.
 - Better error handling and input validation (Zod/Class-validator).
