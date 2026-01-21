@@ -1,16 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { InjectBot } from 'nestjs-telegraf';
+import { Telegraf, Context } from 'telegraf';
 
 @Injectable()
 export class SchedulerService {
   private readonly logger = new Logger(SchedulerService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectBot() private readonly bot: Telegraf<Context>,
+  ) {}
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron('0 0 * * *')
   async handleCron() {
-    this.logger.log('Running materialization cron...');
+    this.logger.log('Running materialization cron at midnight...');
     await this.materializeInstances();
   }
 
@@ -21,7 +26,7 @@ export class SchedulerService {
 
     const now = new Date();
     const horizon = new Date();
-    horizon.setDate(now.getDate() + 7); // 7 days window
+    horizon.setDate(now.getDate() + 2); // 48h / approx next day window
 
     for (const series of activeSeries) {
       try {
@@ -87,13 +92,41 @@ export class SchedulerService {
 
       if (!existing) {
         this.logger.log(`Materializing instance for series ${series.title} at ${date}`);
-        await this.prisma.eventInstance.create({
+        const instance = await this.prisma.eventInstance.create({
           data: {
             seriesId: series.id,
             startTime: date,
             endTime: new Date(date.getTime() + 60 * 60 * 1000), // Default 1h duration
           },
         });
+
+        await this.notifyAdmins(series, instance);
+      }
+    }
+  }
+
+  private async notifyAdmins(series: any, instance: any) {
+    const admins = await this.prisma.accountUserBinding.findMany({
+      where: {
+        accountId: series.accountId,
+        role: 'ADMIN',
+      },
+      include: {
+        telegramUser: true,
+      },
+    });
+
+    for (const admin of admins) {
+      try {
+        const message = `🔔 **New Instance Materialized**\n\n` +
+          `Series: **${series.title}**\n` +
+          `Time: \`${instance.startTime.toLocaleString()}\`\n\n` +
+          `You can now announce this using:\n` +
+          `\`/announce ${series.id}\``;
+          
+        await this.bot.telegram.sendMessage(admin.telegramUserId.toString(), message, { parse_mode: 'Markdown' });
+      } catch (e) {
+        this.logger.error(`Failed to notify admin ${admin.telegramUserId}: ${e.message}`);
       }
     }
   }

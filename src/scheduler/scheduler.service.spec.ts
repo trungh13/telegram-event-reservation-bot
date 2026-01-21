@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SchedulerService } from './scheduler.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Frequency } from 'rrule';
+import { getBotToken } from 'nestjs-telegraf';
 
 const mockPrismaService = {
   eventSeries: {
@@ -10,6 +11,15 @@ const mockPrismaService = {
   eventInstance: {
     findUnique: jest.fn(),
     create: jest.fn(),
+  },
+  accountUserBinding: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
+};
+
+const mockBot = {
+  telegram: {
+    sendMessage: jest.fn(),
   },
 };
 
@@ -24,6 +34,10 @@ describe('SchedulerService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: getBotToken(),
+          useValue: mockBot,
         },
       ],
     }).compile();
