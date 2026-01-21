@@ -98,4 +98,29 @@ describe('TelegramService', () => {
       );
     });
   });
+
+  describe('onAnnounce (/announce)', () => {
+    it('should send announcement to target group if series has chatId', async () => {
+      const ctx = createCtx('/announce 123');
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
+      
+      const mockSeries = {
+        id: '123',
+        title: 'Weekly Yoga',
+        chatId: BigInt('-5193203978'),
+        instances: [{ id: 'inst_1', startTime: new Date('2026-01-21T13:00:00Z') }]
+      };
+      
+      mockEventService.getActiveSeries.mockResolvedValue([mockSeries]);
+
+      await service.onAnnounce(ctx);
+
+      expect(mockBot.telegram.sendMessage).toHaveBeenCalledWith(
+        '-5193203978',
+        expect.stringContaining('Weekly Yoga'),
+        expect.anything()
+      );
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Announced to target group!'));
+    });
+  });
 });

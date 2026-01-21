@@ -313,7 +313,20 @@ export class TelegramService {
       ]
     ]);
 
-    await ctx.reply(`📅 ${series.title}\n⏰ ${instance.startTime.toLocaleString()}\n\nWho's in?`, keyboard);
+    const announcement = `📅 ${series.title}\n⏰ ${instance.startTime.toLocaleString()}\n\nWho's in?`;
+    const targetChat = (series as any).chatId?.toString();
+    const targetTopic = (series as any).topicId;
+
+    if (targetChat) {
+        this.debug(`onAnnounce - Posting to target: ${targetChat}, topic: ${targetTopic}`);
+        await ctx.telegram.sendMessage(targetChat, announcement, {
+            ...keyboard,
+            message_thread_id: targetTopic ? parseInt(targetTopic) : undefined,
+        });
+        await ctx.reply(`✅ Announced to target group!`);
+    } else {
+        await ctx.reply(announcement, keyboard);
+    }
   }
 
   @On('text')
