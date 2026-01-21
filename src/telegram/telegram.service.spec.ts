@@ -3,6 +3,7 @@ import { TelegramService } from './telegram.service';
 import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { Context } from 'telegraf';
 import { getBotToken } from 'nestjs-telegraf';
 
@@ -13,8 +14,9 @@ describe('TelegramService', () => {
 
   const mockBot = {
     telegram: {
-      sendMessage: jest.fn(),
+      sendMessage: jest.fn().mockResolvedValue({ message_id: 12345, chat: { id: -100123456 } }),
       getChatMember: jest.fn().mockResolvedValue({ status: 'member' }),
+      editMessageText: jest.fn().mockResolvedValue(true),
     },
     botInfo: { id: 999 },
   };
@@ -35,12 +37,23 @@ describe('TelegramService', () => {
       recordParticipation: jest.fn(),
     };
 
+    const mockPrismaService = {
+      eventInstance: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      participationLog: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelegramService,
         { provide: AccountService, useValue: mockAccountService },
         { provide: EventService, useValue: mockEventService },
         { provide: ParticipationService, useValue: mockParticipationService },
+        { provide: PrismaService, useValue: mockPrismaService },
         { provide: getBotToken(), useValue: mockBot },
       ],
     }).compile();
