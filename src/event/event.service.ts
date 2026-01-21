@@ -16,6 +16,7 @@ export class EventService {
     recurrence: any;
     chatId?: bigint;
     topicId?: string;
+    maxParticipants?: number;
   }) {
     // Verify account exists
     const account = await this.prisma.account.findUnique({
@@ -35,6 +36,7 @@ export class EventService {
         recurrence: data.recurrence,
         chatId: data.chatId,
         topicId: data.topicId,
+        maxParticipants: data.maxParticipants,
       },
     });
 
