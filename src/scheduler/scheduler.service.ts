@@ -21,7 +21,7 @@ export class SchedulerService {
 
     const now = new Date();
     const horizon = new Date();
-    horizon.setDate(now.getDate() + 30); // 30 days window
+    horizon.setDate(now.getDate() + 7); // 7 days window
 
     for (const series of activeSeries) {
       try {
@@ -32,27 +32,36 @@ export class SchedulerService {
     }
   }
 
+  private get isDevMode(): boolean {
+    return process.env.ENV === 'dev';
+  }
+
+  private debug(message: string, ...args: unknown[]): void {
+    if (this.isDevMode) {
+      this.logger.debug(`[Debug] ${message}`, ...args);
+    }
+  }
+
   public async processSeries(series: any, start: Date = new Date(), end?: Date) {
-    const horizon = end || new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const horizon = end || new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
     const { rrulestr, RRule } = require('rrule');
     let rule: any;
     
-    // Debug log for context
-    console.log(`[Debug] processSeries - Series: ${series.title} (${series.id})`);
-    console.log(`[Debug] processSeries - Recurrence: ${JSON.stringify(series.recurrence)}`);
+    this.debug(`processSeries - Series: ${series.title} (${series.id})`);
+    this.debug(`processSeries - Recurrence: ${JSON.stringify(series.recurrence)}`);
     
     const recurrence = series.recurrence;
     if (typeof recurrence === 'string') {
       try {
         const hasDtStart = recurrence.includes('DTSTART');
-        console.log(`[Debug] processSeries - Using rrulestr, hasDtStart: ${hasDtStart}`);
+        this.debug(`processSeries - Using rrulestr, hasDtStart: ${hasDtStart}`);
         rule = rrulestr(recurrence, hasDtStart ? {} : { dtstart: series.createdAt });
       } catch (e) {
-        console.log(`[Debug] processSeries - rrulestr failed, falling back to RRule.fromString: ${e.message}`);
+        this.debug(`processSeries - rrulestr failed, falling back to RRule.fromString: ${e.message}`);
         rule = RRule.fromString(recurrence);
       }
     } else {
-      console.log(`[Debug] processSeries - Using new RRule(object)`);
+      this.debug(`processSeries - Using new RRule(object)`);
       rule = new RRule({
         ...recurrence,
         dtstart: series.createdAt,
@@ -60,9 +69,9 @@ export class SchedulerService {
     }
 
     const dates = rule.between(start, horizon, true);
-    console.log(`[Debug] processSeries - Generated dates count: ${dates.length}`);
+    this.debug(`processSeries - Generated dates count: ${dates.length}`);
     if (dates.length > 0) {
-        console.log(`[Debug] processSeries - First date: ${dates[0].toISOString()}`);
+        this.debug(`processSeries - First date: ${dates[0].toISOString()}`);
     }
 
     for (const date of dates) {
