@@ -60,17 +60,18 @@ model AccountUserBinding {
 }
 
 model EventSeries {
-  id          String   @id @default(uuid())
-  accountId   String
-  title       String
-  description String?
-  timezone    String   @default("Europe/Helsinki")
-  recurrence  Json     /// Recurrence rules (RRule or custom)
-  chatId      BigInt?  /// Telegram Group ID (if targeted)
-  topicId     String?  /// Telegram Topic ID (if targeted)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(uuid())
+  accountId      String
+  title          String
+  description    String?
+  timezone       String   @default("Europe/Helsinki")
+  recurrence     Json     /// Recurrence rules (RRule or custom)
+  chatId         BigInt?  /// Telegram Group ID (if targeted)
+  topicId        String?  /// Telegram Topic ID (if targeted)
+  maxParticipants Int?     /// Capacity limit
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   account   Account         @relation(fields: [accountId], references: [id])
   instances EventInstance[]
@@ -79,15 +80,17 @@ model EventSeries {
 }
 
 model EventInstance {
-  id            String   @id @default(uuid())
-  seriesId      String
-  startTime     DateTime
-  endTime       DateTime
-  status        String   @default("SCHEDULED") /// SCHEDULED, CANCELLED, COMPLETED
-  topicId       String?  /// Telegram thread/topic ID if applicable
-  chatId        BigInt?  /// Telegram chat ID where this instance lives
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  seriesId              String
+  startTime             DateTime
+  endTime               DateTime
+  status                String   @default("SCHEDULED") /// SCHEDULED, CANCELLED, COMPLETED
+  topicId               String?  /// Telegram thread/topic ID if applicable
+  chatId                BigInt?  /// Telegram chat ID where this instance lives
+  announcementMessageId BigInt?  /// ID of the telegram message for live attendance
+  announcementChatId    BigInt?  /// Chat ID where the announcement was posted
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   series        EventSeries        @relation(fields: [seriesId], references: [id])
   participation ParticipationLog[]
