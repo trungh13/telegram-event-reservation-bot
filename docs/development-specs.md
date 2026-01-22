@@ -14,17 +14,27 @@ The bot must distinguish between Private and Group contexts.
 - **Logic**: Returns the `chat_id` and `message_thread_id` (if applicable) of the current context.
 - **Utility**: Helps admins easily find the ID to use in `/create`.
 
-#### Command: `/create title="..." rrule="..." [date="..."] [group="..."] [limit="..."]`
+#### Command: `/create title="..." rrule="..." [flags]`
 - **Context**: Private (Admin DM) or Group.
-- **Parsing**: Key-Value pairs (space separated, quoted values) or positional args.
-    - `title`: Event title (Required).
-    - `rrule`: Recurrence rule (Required).
-    - `date`: Start date `dd/mm/yyyy HH:mm` (Optional).
-    - `group`: Target Group ID (Required for auto-announce).
-    - `limit`: Maximum participants (Optional, numeric).
+- **Parsing**: Supports both `key="value"` (Named) and positional arguments.
+- **Flag Reference**:
+
+| Flag | Aliases | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `title` | | Yes | Event name shown on the card. |
+| `rrule` | | Yes | iCal recurrence rule (e.g. `FREQ=WEEKLY`). |
+| `group` | `chat` | Yes* | Target Telegram Group ID. Required for auto-announce. |
+| `date` | `start` | No | Start date & time in `dd/mm/yyyy HH:mm` format. |
+| `limit` | | No | Max participants allowed. |
+| `topic` | | No | Target Topic Thread ID (for forum groups). |
+
+- **Syntax Rules**:
+    - Use `key="value"` for named parameters (space separated).
+    - If no keys are present, falls back to positional: `[title] [rrule] [date] [group] [topic] [limit]`.
+    - Quoted strings are required if values contain spaces.
 - **Validation**:
-    - Verify strict required keys.
-    - Check bot membership if `group` is provided.
+    - Ensures `title` and `rrule` are present.
+    - Verified bot membership in specific `group` BEFORE series creation.
 
 #### Command: `/announce <series_id>`
 - **Behavior**:

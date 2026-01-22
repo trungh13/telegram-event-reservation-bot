@@ -24,13 +24,16 @@ A Telegram-first Event Booking System designed for managing recurring group acti
 
 ### Admin / Organizer
 1.  **Binding**: Direct messages the bot (`/start <key>`) to become an Admin/Owner for an Account.
-2.  **Creation**: Uses `/create` with named parameters for clarity.
-    *   *Input*: `title="..." rrule="..." group="..." limit="10"`
-    *   *Helper*: Can use `/id` in a group to get its ID first.
+2.  **Creation**: Uses `/create` with named parameters.
+    *   **Required Flags**: `title="..."`, `rrule="..."`, `group="..."`.
+    *   **Optional Flags**: `date="..."` (start date), `limit="..."` (capacity), `topic="..."`.
+    *   **Aliases**: `group` can be `chat`; `date` can be `start`.
+    *   **Example**: 
+        `/create title="Yoga" rrule="FREQ=WEEKLY;BYDAY=TU" date="20/01/2026 18:00" group="-100123" limit="12"`
 3.  **Management**: Uses `/list` to see all active Series, IDs, and linked Groups.
 4.  **Announcements**:
     *   **Automatic**: Bot posts to groups by default.
-    *   **Manual**: Use `/announce <series_id>` to re-post or trigger an immediate card.
+    *   **Manual**: Use `/announce <series_id>` (e.g., `/announce 123`) to re-post a card.
 
 ### Participant
 1.  **Voting**: Clicks interactive buttons (✅ JOIN, ❌ LEAVE, ➕ +1) on event cards.
