@@ -94,6 +94,6 @@ Want to help build these features? Check our [PRD](./prd.md) for detailed ticket
 
 ## Support
 
-☕ **[Buy Me a Coffee](https://buymeacoffee.com/your-username)**
+☕ **[Buy Me a Coffee](https://buymeacoffee.com/trungh13)**
 
 💳 **Stripe Payments** - Coming in Phase 3

@@ -47,7 +47,7 @@ pnpm start:dev
 
 ## Support the Project
 
-☕ **[Buy Me a Coffee](https://buymeacoffee.com/your-username)** - If this project helps you, consider supporting its development!
+☕ **[Buy Me a Coffee](https://buymeacoffee.com/trungh13)** - If this project helps you, consider supporting its development!
 
 💳 **Stripe Payments** - Coming soon in Phase 3 for subscription-based features.
 
