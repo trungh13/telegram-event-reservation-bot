@@ -314,7 +314,7 @@ export class TelegramService {
         return;
     }
 
-    const announcement = await this.renderAttendanceList(series, instance);
+    const announcement = await this.eventService.formatAttendanceMessage(series, instance);
     const keyboard = Markup.inlineKeyboard([
       [
         Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
@@ -348,47 +348,6 @@ export class TelegramService {
     }
   }
 
-  private async renderAttendanceList(series: any, instance: any): Promise<string> {
-    const participants = await this.prisma.participationLog.findMany({
-        where: { instanceId: instance.id },
-        include: { telegramUser: true },
-        orderBy: { createdAt: 'asc' }
-    });
-
-    const latestVotes = new Map<string, any>();
-    for (const p of participants) {
-        latestVotes.set(p.telegramUserId.toString(), p);
-    }
-
-    const attendees: string[] = [];
-    let count = 0;
-
-    for (const vote of Array.from(latestVotes.values())) {
-        if (vote.action === 'JOIN' || vote.action === 'PLUS_ONE') {
-            const user = vote.telegramUser;
-            const name = user.firstName + (user.lastName ? ` ${user.lastName}` : '');
-            const suffix = vote.action === 'PLUS_ONE' ? ' (+1)' : '';
-            attendees.push(`• ${name}${suffix}`);
-            count += (vote.action === 'PLUS_ONE' ? 2 : 1);
-        }
-    }
-
-    let msg = `📅 **${series.title}**\n`;
-    msg += `⏰ \`${instance.startTime.toLocaleString()}\`\n`;
-    
-    if ((series as any).maxParticipants) {
-        msg += `👥 **Capacity:** ${count}/${(series as any).maxParticipants}\n`;
-    }
-
-    msg += `\n**Who's in?**\n`;
-    if (attendees.length > 0) {
-        msg += attendees.join('\n') + '\n';
-    } else {
-        msg += `_No one yet_\n`;
-    }
-
-    return msg;
-  }
 
   @On('text')
   async onMessage(@Ctx() ctx: Context): Promise<void> {
@@ -474,7 +433,7 @@ export class TelegramService {
 
       // Live Update
       if ((instance as any).announcementMessageId && (instance as any).announcementChatId) {
-          const updatedText = await this.renderAttendanceList(instance.series, instance);
+          const updatedText = await this.eventService.formatAttendanceMessage(instance.series, instance);
           const keyboard = Markup.inlineKeyboard([
             [
               Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
