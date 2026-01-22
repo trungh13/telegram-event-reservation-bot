@@ -14,56 +14,38 @@ The bot must distinguish between Private and Group contexts.
 - **Logic**: Returns the `chat_id` and `message_thread_id` (if applicable) of the current context.
 - **Utility**: Helps admins easily find the ID to use in `/create`.
 
-#### Command: `/create title="..." rrule="..." [date="..."] [group="..."]`
+#### Command: `/create title="..." rrule="..." [date="..."] [group="..."] [limit="..."]`
 - **Context**: Private (Admin DM) or Group.
-- **Parsing**: Key-Value pairs (space separated, quoted values).
+- **Parsing**: Key-Value pairs (space separated, quoted values) or positional args.
     - `title`: Event title (Required).
     - `rrule`: Recurrence rule (Required).
-    - `date` (or `start`): Start date `dd/mm/yyyy HH:mm` (Optional).
-    - `group` (or `chat`): Target Group ID (Optional, defaults to current chat if in group).
-    - `topic`: Target Topic ID (Optional, defaults to current topic if in group).
+    - `date`: Start date `dd/mm/yyyy HH:mm` (Optional).
+    - `group`: Target Group ID (Required for auto-announce).
+    - `limit`: Maximum participants (Optional, numeric).
 - **Validation**:
     - Verify strict required keys.
     - Check bot membership if `group` is provided.
-- **Example**:
-    `/create title="Yoga" rrule="FREQ=WEEKLY" group="-100123"`
 
 #### Command: `/announce <series_id>`
-- **Context**: Private or Group.
-- **Logic**:
-    1.  Validate `series_id` belongs to Account.
-    2.  Fetch `chatId` from Series.
-    3.  Post event card to that `chatId`.
-
-#### Command: `/list`
-- **Output**:
-    - ID: `series_id` (shortened?)
-    - Title: `Yoga`
-    - Recurrence: `Weekly`
-    - Target: `Group Name (ID)` / `Link`
-
-### 2. Recurrence Engine
-- **Library**: `rrule` (Node.js).
 - **Behavior**:
-    - If `StartDate` is `20.01.2026` (Tuesday) and Rule is `BYDAY=MO`:
-    - `rrule.all()` starts searching from `20.01`.
-    - First match: `26.01.2026` (Monday).
-    - This matches user expectation: "Target next possible BYDAY".
-- **Combining Multiple Rules**:
-    - **Multiple Days**: Use commas: `BYDAY=MO,WE,FR`.
-    - **Multiple Schedules**: Provide a full iCal block with multiple `RRULE:` lines.
-    - **Exclusions**: Use `EXRULE` or `EXDATE`.
-    - **Logic**: `SchedulerService` uses `rrulestr` to parse these complex blocks into an `RRuleSet`.
+    1.  Validate `series_id` belongs to Account.
+    2.  Post event card to the configured `chatId/topicId`.
+    3.  **Constraint**: Prevents double-posting the same instance.
+
+### 2. Automation & UI Updates
+- **Auto-Announce**:
+    - `SchedulerService` automatically posts event cards to groups 48h before the start time.
+    - Both `OWNER` and `ADMIN` roles receive private notifications on materialization.
+- **Live Attendance**:
+    - Message formatting logic is centralized in `EventService.formatAttendanceMessage`.
+    - `TelegramService` triggers a re-render and edits the original message via `editMessageText` on every vote.
+    - Shows names, `+1` count, and `current/limit` capacity status.
 
 ### 3. Data Model Updates
-- **EventSeries**: Add `chatId` (BigInt), `topicId` (String/Int).
-- **EventInstance**: Inherit context from Series, but allow overrides if announced elsewhere.
-
-### 4. Url Handling
-- Telegram Links:
-    - Group: `https://t.me/c/<chat_id>/<thread_id>`
-    - Parsing: Extract IDs to verify bot permissions or linking.
+- **EventSeries**: `chatId` (BigInt), `topicId` (String), `maxParticipants` (Int).
+- **EventInstance**: `announcementMessageId` (BigInt), `announcementChatId` (BigInt).
 
 ## Validation Rules
 - **Date Format**: `dd/mm/yyyy HH:mm` (e.g., `20/01/2026 18:00`).
 - **Quotes**: Arguments can be quoted to support spaces.
+- **Capacity**: JOIN/PLUS_ONE is blocked if `(current_votes + new_votes) > maxParticipants`.
