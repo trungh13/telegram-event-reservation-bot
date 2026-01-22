@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SchedulerService } from '../scheduler/scheduler.service';
 
@@ -6,6 +6,7 @@ import { SchedulerService } from '../scheduler/scheduler.service';
 export class EventService {
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => SchedulerService))
     private readonly schedulerService: SchedulerService,
   ) {}
 
@@ -66,5 +67,47 @@ export class EventService {
         },
       },
     });
+  }
+
+  async formatAttendanceMessage(series: any, instance: any): Promise<string> {
+    const participants = await this.prisma.participationLog.findMany({
+        where: { instanceId: instance.id },
+        include: { telegramUser: true },
+        orderBy: { createdAt: 'asc' }
+    });
+
+    const latestVotes = new Map<string, any>();
+    for (const p of participants) {
+        latestVotes.set(p.telegramUserId.toString(), p);
+    }
+
+    const attendees: string[] = [];
+    let count = 0;
+
+    for (const vote of Array.from(latestVotes.values())) {
+        if (vote.action === 'JOIN' || vote.action === 'PLUS_ONE') {
+            const user = vote.telegramUser;
+            const name = user.firstName + (user.lastName ? ` ${user.lastName}` : '');
+            const suffix = vote.action === 'PLUS_ONE' ? ' (+1)' : '';
+            attendees.push(`• ${name}${suffix}`);
+            count += (vote.action === 'PLUS_ONE' ? 2 : 1);
+        }
+    }
+
+    let msg = `📅 **${series.title}**\n`;
+    msg += `⏰ \`${instance.startTime.toLocaleString()}\`\n`;
+    
+    if ((series as any).maxParticipants) {
+        msg += `👥 **Capacity:** ${count}/${(series as any).maxParticipants}\n`;
+    }
+
+    msg += `\n**Who's in?**\n`;
+    if (attendees.length > 0) {
+        msg += attendees.join('\n') + '\n';
+    } else {
+        msg += `_No one yet_\n`;
+    }
+
+    return msg;
   }
 }
