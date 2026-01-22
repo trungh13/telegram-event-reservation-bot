@@ -3,6 +3,7 @@ import { SchedulerService } from './scheduler.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Frequency } from 'rrule';
 import { getBotToken } from 'nestjs-telegraf';
+import { EventService } from '../event/event.service';
 
 const mockPrismaService = {
   eventSeries: {
@@ -11,6 +12,7 @@ const mockPrismaService = {
   eventInstance: {
     findUnique: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
   },
   accountUserBinding: {
     findMany: jest.fn().mockResolvedValue([]),
@@ -19,8 +21,12 @@ const mockPrismaService = {
 
 const mockBot = {
   telegram: {
-    sendMessage: jest.fn(),
+    sendMessage: jest.fn().mockResolvedValue({ message_id: 999, chat: { id: -1001 } }),
   },
+};
+
+const mockEventService = {
+  formatAttendanceMessage: jest.fn().mockResolvedValue('Mock Message'),
 };
 
 describe('SchedulerService', () => {
@@ -34,6 +40,10 @@ describe('SchedulerService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: EventService,
+          useValue: mockEventService,
         },
         {
           provide: getBotToken(),
@@ -51,15 +61,15 @@ describe('SchedulerService', () => {
 
   describe('materializeInstances', () => {
     it('should create instances for active series', async () => {
-      const seriesCreatedAt = new Date('2026-01-01T10:00:00Z');
+      const now = new Date();
       const mockSeries = {
         id: 'ser_1',
         title: 'Weekly Yoga',
         isActive: true,
-        createdAt: seriesCreatedAt,
+        createdAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), // 1 week ago
         recurrence: {
-          freq: Frequency.WEEKLY,
-          dtstart: seriesCreatedAt,
+          freq: Frequency.DAILY, // Daily to ensure one hits the next 48h
+          dtstart: now,
         },
       };
 
@@ -75,15 +85,15 @@ describe('SchedulerService', () => {
     });
 
     it('should not create duplicate instances', async () => {
-      const seriesCreatedAt = new Date('2026-01-01T10:00:00Z');
+      const now = new Date();
       const mockSeries = {
         id: 'ser_1',
         title: 'Weekly Yoga',
         isActive: true,
-        createdAt: seriesCreatedAt,
+        createdAt: now,
         recurrence: {
-          freq: Frequency.WEEKLY,
-          dtstart: seriesCreatedAt,
+          freq: Frequency.DAILY,
+          dtstart: now,
         },
       };
 
@@ -93,6 +103,26 @@ describe('SchedulerService', () => {
       await service.materializeInstances();
 
       expect(mockPrismaService.eventInstance.create).not.toHaveBeenCalled();
+    });
+
+    it('should trigger auto-announcement if chatId is present', async () => {
+      const seriesCreatedAt = new Date('2026-01-01T10:00:00Z');
+      const mockSeries = {
+        id: 'ser_1',
+        title: 'Yoga',
+        chatId: BigInt(-100123),
+        recurrence: { freq: Frequency.DAILY, dtstart: seriesCreatedAt },
+      };
+
+      mockPrismaService.eventSeries.findMany.mockResolvedValue([mockSeries]);
+      mockPrismaService.eventInstance.findUnique.mockResolvedValue(null);
+      mockPrismaService.eventInstance.create.mockResolvedValue({ id: 'inst_new', startTime: new Date() });
+      mockPrismaService.eventInstance.update = jest.fn().mockResolvedValue({});
+
+      await service.materializeInstances();
+
+      expect(mockEventService.formatAttendanceMessage).toHaveBeenCalled();
+      expect(mockBot.telegram.sendMessage).toHaveBeenCalledWith('-100123', expect.any(String), expect.anything());
     });
   });
 });

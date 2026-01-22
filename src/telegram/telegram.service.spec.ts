@@ -31,6 +31,7 @@ describe('TelegramService', () => {
     mockEventService = {
       createSeries: jest.fn(),
       getActiveSeries: jest.fn(),
+      formatAttendanceMessage: jest.fn().mockResolvedValue('Formatted Message'),
     };
 
     const mockParticipationService = {
@@ -130,7 +131,7 @@ describe('TelegramService', () => {
 
       expect(mockBot.telegram.sendMessage).toHaveBeenCalledWith(
         '-5193203978',
-        expect.stringContaining('Weekly Yoga'),
+        'Formatted Message',
         expect.anything()
       );
       expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Announced to target group!'));
