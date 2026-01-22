@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { InjectBot } from 'nestjs-telegraf';
-import { Telegraf, Context } from 'telegraf';
+import { Telegraf, Context, Markup } from 'telegraf';
+import { EventService } from '../event/event.service';
 
 @Injectable()
 export class SchedulerService {
@@ -11,6 +12,8 @@ export class SchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectBot() private readonly bot: Telegraf<Context>,
+    @Inject(forwardRef(() => EventService))
+    private readonly eventService: EventService,
   ) {}
 
   @Cron('0 0 * * *')
@@ -100,8 +103,43 @@ export class SchedulerService {
           },
         });
 
+        // Auto-Announce if target group is set
+        await this.autoAnnounce(series, instance);
         await this.notifyAdmins(series, instance);
       }
+    }
+  }
+
+  private async autoAnnounce(series: any, instance: any) {
+    if (!series.chatId) return;
+
+    try {
+        const text = await this.eventService.formatAttendanceMessage(series, instance);
+        const keyboard = Markup.inlineKeyboard([
+          [
+            Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
+            Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
+            Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
+          ]
+        ]);
+
+        const sentMsg = await this.bot.telegram.sendMessage(series.chatId.toString(), text, {
+            ...keyboard,
+            message_thread_id: series.topicId ? parseInt(series.topicId) : undefined,
+            parse_mode: 'Markdown',
+        });
+
+        await (this.prisma.eventInstance as any).update({
+            where: { id: instance.id },
+            data: {
+                announcementMessageId: BigInt(sentMsg.message_id),
+                announcementChatId: BigInt(sentMsg.chat.id),
+            }
+        });
+
+        this.logger.log(`Auto-announced instance ${instance.id} to chat ${series.chatId}`);
+    } catch (e) {
+        this.logger.error(`Failed to auto-announce instance ${instance.id}: ${e.message}`);
     }
   }
 
@@ -109,7 +147,7 @@ export class SchedulerService {
     const admins = await this.prisma.accountUserBinding.findMany({
       where: {
         accountId: series.accountId,
-        role: 'ADMIN',
+        role: { in: ['ADMIN', 'OWNER'] },
       },
       include: {
         telegramUser: true,
@@ -118,11 +156,10 @@ export class SchedulerService {
 
     for (const admin of admins) {
       try {
-        const message = `🔔 **New Instance Materialized**\n\n` +
+        const message = `🔔 **Instance Materialized**\n\n` +
           `Series: **${series.title}**\n` +
           `Time: \`${instance.startTime.toLocaleString()}\`\n\n` +
-          `You can now announce this using:\n` +
-          `\`/announce ${series.id}\``;
+          (series.chatId ? `✅ Automatically announced to group.` : `You can announce this using:\n\`/announce ${series.id}\``);
           
         await this.bot.telegram.sendMessage(admin.telegramUserId.toString(), message, { parse_mode: 'Markdown' });
       } catch (e) {
