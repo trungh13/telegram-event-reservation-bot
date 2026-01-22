@@ -52,23 +52,44 @@ export class TelegramService {
 
   private async sendHelpMessage(ctx: Context, title: string) {
     const helpText = `${title}\n\n` +
-      `**Commands:**\n` +
-      `• \`/start <key>\` - Bind your account (admins only)\n` +
-      `• \`/create title=".." rrule=".." [group=".."]\` - Create event series\n` +
-      `• \`/list\` - List active series\n` +
-      `• \`/id\` - Get current chat/topic ID\n` +
-      `• \`/announce\` - Post next event with voting buttons\n\n` +
-      `**Example create:**\n` +
-      `\`/create title="Yoga" rrule="FREQ=WEEKLY" group="-100123" date="25/01/2026 18:00"\`\n\n` +
-      `**RRule Cheat Sheet:**\n` +
-      `• \`FREQ\`: DAILY, WEEKLY, MONTHLY\n` +
-      `• \`BYDAY\`: MO, TU, WE... (comma separated)\n` +
-      `• \`INTERVAL\`: 2 (every 2nd week)\n` +
-      `• \`COUNT\`: 10 (stop after 10 sessions)\n\n` +
-      `**Advanced Patterns:**\n` +
-      `• **Multiple days**: \`BYDAY=MO,WE,FR\`\n` +
-      `• **Specific days of month**: \`FREQ=MONTHLY;BYMONTHDAY=1,15\`\n` +
-      `• **Complex (iCal)**: Provide full iCal block with multiple \`RRULE:\` lines for different schedules in one series.`;
+      `**🔑 Account Binding**\n` +
+      `\`/start <key>\` - Link this Telegram account to an organization.\n` +
+      `  • *Example:* \`/start abc123xyz\`\n\n` +
+
+      `**📋 Event Creation (\`/create\`)**\n` +
+      `Create recurring events with named flags:\n` +
+      `\`/create title="..." rrule="..." group="..." [options]\`\n\n` +
+      `  **Required Flags:**\n` +
+      `  • \`title\` - Event name (e.g., \`title="Team Yoga"\`)\n` +
+      `  • \`rrule\` - Recurrence rule (e.g., \`rrule="FREQ=WEEKLY"\`)\n` +
+      `  • \`group\` - Target group ID (use \`/id\` to find)\n\n` +
+      `  **Optional Flags:**\n` +
+      `  • \`date\` or \`start\` - First occurrence (\`dd/mm/yyyy HH:mm\`)\n` +
+      `  • \`limit\` - Max participants (\`limit="12"\`)\n` +
+      `  • \`topic\` - Forum topic ID\n\n` +
+      `  **Common Examples:**\n` +
+      `  • Weekly event:\n` +
+      `    \`/create title="Yoga" rrule="FREQ=WEEKLY;BYDAY=TU" group="-100123"\`\n` +
+      `  • Daily with a limit:\n` +
+      `    \`/create title="Standup" rrule="FREQ=DAILY" group="-100123" limit="10"\`\n` +
+      `  • Every 2 weeks:\n` +
+      `    \`/create title="Retro" rrule="FREQ=WEEKLY;INTERVAL=2" group="-100123"\`\n\n` +
+
+      `**📢 Announcements**\n` +
+      `\`/announce <series_id>\` - Manually post an event to its group.\n` +
+      `  • Events are auto-announced by default if a \`group\` was set.\n` +
+      `  • Use this to re-post or when testing.\n\n` +
+
+      `**🔧 Utilities**\n` +
+      `• \`/list\` - Show all your active event series.\n` +
+      `• \`/id\` - Get the current chat's ID (use in a group).\n\n` +
+
+      `**📖 RRule Cheat Sheet**\n` +
+      `• \`FREQ\`: DAILY, WEEKLY, MONTHLY, YEARLY\n` +
+      `• \`BYDAY\`: MO, TU, WE, TH, FR, SA, SU (comma separated)\n` +
+      `• \`INTERVAL\`: e.g., \`2\` for every other week\n` +
+      `• \`COUNT\`: e.g., \`10\` to stop after 10 occurrences\n` +
+      `• \`BYMONTHDAY\`: e.g., \`1,15\` for 1st and 15th`;
 
     await ctx.reply(helpText, { parse_mode: 'Markdown' });
   }
