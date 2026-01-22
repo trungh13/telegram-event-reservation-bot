@@ -1,0 +1,116 @@
+# Technical Specifications
+
+> Developer Reference for Event Booking System
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         NestJS Application                      │
+├─────────────────────────────────────────────────────────────────┤
+│  TelegramModule    │  EventModule    │  SchedulerModule         │
+│  - Bot Commands    │  - Series CRUD  │  - Cron Jobs             │
+│  - Inline Voting   │  - Formatting   │  - Auto-Announce         │
+├─────────────────────────────────────────────────────────────────┤
+│  AccountModule     │  ParticipationModule │  TelegramUserModule │
+│  - API Key Binding │  - Vote Logging      │  - User Upsert      │
+├─────────────────────────────────────────────────────────────────┤
+│                         PrismaModule (Global)                   │
+│                         PostgreSQL Database                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Data Models
+
+| Model | Purpose | Key Fields |
+| :--- | :--- | :--- |
+| `Account` | Organization/Tenant | `name`, `apiKeys[]` |
+| `ApiKey` | Auth token for binding | `key` (unique) |
+| `TelegramUser` | Telegram user profile | `id` (BigInt), `username` |
+| `AccountUserBinding` | User-to-Account link | `role` (OWNER/ADMIN/MEMBER) |
+| `EventSeries` | Recurring event template | `title`, `recurrence`, `chatId`, `maxParticipants` |
+| `EventInstance` | Concrete occurrence | `startTime`, `announcementMessageId` |
+| `ParticipationLog` | Vote history | `action` (JOIN/LEAVE/PLUS_ONE) |
+
+---
+
+## Command API
+
+### `/create` - Create Event Series
+
+```
+/create title="..." rrule="..." group="..." [options]
+```
+
+| Flag | Required | Aliases | Description |
+| :--- | :--- | :--- | :--- |
+| `title` | Yes | | Event name |
+| `rrule` | Yes | | iCal recurrence rule |
+| `group` | Yes | `chat` | Target Telegram group ID |
+| `date` | No | `start` | First occurrence (`dd/mm/yyyy HH:mm`) |
+| `limit` | No | | Max participants |
+| `topic` | No | | Forum topic ID |
+
+**Examples:**
+```
+# Weekly yoga every Tuesday
+/create title="Yoga" rrule="FREQ=WEEKLY;BYDAY=TU" group="-100123"
+
+# Daily standup with capacity limit
+/create title="Standup" rrule="FREQ=DAILY" group="-100123" limit="10"
+
+# Biweekly retro starting specific date
+/create title="Retro" rrule="FREQ=WEEKLY;INTERVAL=2" group="-100123" date="25/01/2026 15:00"
+```
+
+### `/announce <series_id>` - Manual Announcement
+
+Posts event card to target group. Prevents duplicates.
+
+### `/list` - Show Active Series
+
+Returns all series for user's Account with IDs and targets.
+
+### `/id` - Get Chat Info
+
+Returns current chat ID, type, and topic ID (if applicable).
+
+---
+
+## Scheduling Logic
+
+1. **Cron**: Runs daily at midnight (`0 0 * * *`)
+2. **Window**: Materializes instances 48 hours ahead
+3. **RRule**: Uses `rrulestr` for complex recurrence patterns
+4. **Auto-Announce**: Posts to `chatId` if set, stores `announcementMessageId`
+5. **Notifications**: Alerts OWNER/ADMIN via private message
+
+---
+
+## Testing
+
+```bash
+# Unit tests
+pnpm test
+
+# Specific service
+pnpm test scheduler.service.spec.ts
+
+# Coverage report
+pnpm test:cov
+
+# E2E tests
+pnpm test:e2e
+```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `TELEGRAM_BOT_TOKEN` | Yes | Bot token from @BotFather |
+| `ENV` | No | Set to `dev` for debug logging |
