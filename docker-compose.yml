@@ -2,10 +2,10 @@ version: '3.8'
 services:
   app:
     build: .
-    container_name: emerald_app
+    container_name: telegram_event_reservation_bot_app
     restart: always
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-emerald}?schema=public
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-telegram_event_reservation_bot}?schema=public
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_BOT_NAME=${TELEGRAM_BOT_NAME}
     depends_on:
@@ -15,12 +15,12 @@ services:
 
   postgres:
     image: postgres:15-alpine
-    container_name: emerald_postgres
+    container_name: telegram_event_reservation_bot_postgres
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
-      POSTGRES_DB: ${POSTGRES_DB:-emerald}
+      POSTGRES_DB: ${POSTGRES_DB:-telegram_event_reservation_bot}
     ports:
       - "5432:5432"
     volumes:
@@ -28,7 +28,7 @@ services:
 
   adminer:
     image: adminer
-    container_name: emerald_adminer
+    container_name: telegram_event_reservation_bot_adminer
     restart: always
     ports:
       - "8080:8080"

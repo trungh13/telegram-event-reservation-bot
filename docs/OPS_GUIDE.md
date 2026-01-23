@@ -34,7 +34,7 @@ docker push your-registry/booking-system:v1.0.0
 docker run -d \
   --name booking-system \
   -p 3000:3000 \
-  -e DATABASE_URL="postgresql://admin:password@postgres:5432/emerald?schema=public" \
+  -e DATABASE_URL="postgresql://admin:password@postgres:5432/telegram_event_reservation_bot?schema=public" \
   -e TELEGRAM_BOT_TOKEN="your_token" \
   -e TELEGRAM_BOT_NAME="your_bot_name" \
   -e ENV="production" \
@@ -54,7 +54,7 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: emerald
+      POSTGRES_DB: telegram_event_reservation_bot
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -67,7 +67,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: "postgresql://admin:${DB_PASSWORD}@postgres:5432/emerald?schema=public"
+      DATABASE_URL: "postgresql://admin:${DB_PASSWORD}@postgres:5432/telegram_event_reservation_bot?schema=public"
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_BOT_NAME: ${TELEGRAM_BOT_NAME}
       ENV: production
@@ -113,13 +113,13 @@ docker-compose -f docker-compose.prod.yml logs -f app
 
 ```bash
 # Run migrations before starting app
-docker-compose exec postgres psql -U admin -d emerald -f /migrations/latest.sql
+docker-compose exec postgres psql -U admin -d telegram_event_reservation_bot -f /migrations/latest.sql
 
 # Or using Prisma
 docker-compose exec app pnpm prisma migrate deploy
 
 # Verify
-docker-compose exec postgres psql -U admin -d emerald -c "SELECT * FROM public.schema_migrations;"
+docker-compose exec postgres psql -U admin -d telegram_event_reservation_bot -c "SELECT * FROM public.schema_migrations;"
 ```
 
 ---
@@ -130,7 +130,7 @@ docker-compose exec postgres psql -U admin -d emerald -c "SELECT * FROM public.s
 
 ```env
 # Database
-DATABASE_URL="postgresql://admin:strong_password@postgres:5432/emerald?schema=public"
+DATABASE_URL="postgresql://admin:strong_password@postgres:5432/telegram_event_reservation_bot?schema=public"
 
 # Telegram
 TELEGRAM_BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
@@ -149,7 +149,7 @@ NODE_ENV="production"
 # Database (if not in URL)
 POSTGRES_USER="admin"
 POSTGRES_PASSWORD="strong_password"
-POSTGRES_DB="emerald"
+POSTGRES_DB="telegram_event_reservation_bot"
 
 # Logging
 LOG_LEVEL="info"  # debug, info, warn, error
@@ -243,7 +243,7 @@ scrape_configs:
 pg_dump $DATABASE_URL > backup-$(date +%Y%m%d-%H%M%S).sql
 
 # Or with Docker
-docker-compose exec postgres pg_dump -U admin emerald > backup-$(date +%Y%m%d).sql
+docker-compose exec postgres pg_dump -U admin telegram_event_reservation_bot > backup-$(date +%Y%m%d).sql
 
 # Verify backup
 du -h backup-*.sql
@@ -258,7 +258,7 @@ file backup-*.sql
 
 BACKUP_DIR="/backups/postgresql"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/emerald-$TIMESTAMP.sql"
+BACKUP_FILE="$BACKUP_DIR/telegram_event_reservation_bot-$TIMESTAMP.sql"
 
 mkdir -p $BACKUP_DIR
 
@@ -290,7 +290,7 @@ docker-compose down
 psql $DATABASE_URL < backup-20260123.sql
 
 # Or with Docker
-docker-compose exec postgres psql -U admin emerald < backup-20260123.sql
+docker-compose exec postgres psql -U admin telegram_event_reservation_bot < backup-20260123.sql
 
 # Restart
 docker-compose up -d
@@ -370,7 +370,7 @@ Use **pgBouncer** for connection pooling:
 ```ini
 # pgbouncer.ini
 [databases]
-emerald = host=postgres port=5432 dbname=emerald
+telegram_event_reservation_bot = host=postgres port=5432 dbname=telegram_event_reservation_bot
 
 [pgbouncer]
 pool_mode = transaction
@@ -610,7 +610,7 @@ server {
 ```sql
 -- Limit user permissions
 CREATE USER app_user WITH PASSWORD 'strong_password';
-GRANT CONNECT ON DATABASE emerald TO app_user;
+GRANT CONNECT ON DATABASE telegram_event_reservation_bot TO app_user;
 GRANT USAGE ON SCHEMA public TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO app_user;

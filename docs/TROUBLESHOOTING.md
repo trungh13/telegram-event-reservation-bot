@@ -48,7 +48,7 @@ Solutions for common issues when developing and running the Event Booking System
 
 ### Database URL Format Error
 
-**Error**: `ENOTFOUND emerald` or `authentication failed`
+**Error**: `ENOTFOUND telegram_event_reservation_bot` or `authentication failed`
 
 **Cause**: Incorrect DATABASE_URL format
 
@@ -61,13 +61,13 @@ grep DATABASE_URL .env
 **Valid formats**:
 ```
 # Local PostgreSQL
-postgresql://postgres:password@localhost:5432/emerald
+postgresql://postgres:password@localhost:5432/telegram_event_reservation_bot
 
 # With schema
-postgresql://postgres:password@localhost:5432/emerald?schema=public
+postgresql://postgres:password@localhost:5432/telegram_event_reservation_bot?schema=public
 
 # Docker Compose
-postgresql://admin:secret@postgres:5432/emerald
+postgresql://admin:secret@postgres:5432/telegram_event_reservation_bot
 
 # Cloud PostgreSQL (Heroku, Supabase)
 postgresql://user:password@host.compute.amazonaws.com:5432/dbname?schema=public
@@ -604,10 +604,10 @@ docker-compose up (don't use -d)
 **Fix**:
 ```
 # ❌ Wrong in Docker - localhost won't work
-DATABASE_URL="postgresql://admin:secret@localhost:5432/emerald"
+DATABASE_URL="postgresql://admin:secret@localhost:5432/telegram_event_reservation_bot"
 
 # ✅ Correct in Docker - use service name
-DATABASE_URL="postgresql://admin:secret@postgres:5432/emerald"
+DATABASE_URL="postgresql://admin:secret@postgres:5432/telegram_event_reservation_bot"
 ```
 
 ---
@@ -622,13 +622,13 @@ DATABASE_URL="postgresql://admin:secret@postgres:5432/emerald"
 ```bash
 # Wait for database to be ready
 docker-compose up  # Let it run for 30 seconds
-docker-compose exec postgres psql -U admin -d emerald -c "SELECT 1"
+docker-compose exec postgres psql -U admin -d telegram_event_reservation_bot -c "SELECT 1"
 
 # Then access Adminer
 # Username: admin
 # Password: secret
 # Server: postgres
-# Database: emerald
+# Database: telegram_event_reservation_bot
 ```
 
 ---

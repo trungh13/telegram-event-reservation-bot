@@ -69,11 +69,11 @@ For development without Docker:
 
 ```bash
 # Create PostgreSQL database
-createdb emerald
+createdb telegram_event_reservation_bot
 
 # Or using psql
 psql -U postgres
-CREATE DATABASE emerald;
+CREATE DATABASE telegram_event_reservation_bot;
 \q
 ```
 
@@ -90,7 +90,7 @@ cp .env.example .env
 
 Edit `.env`:
 ```
-DATABASE_URL="postgresql://postgres:password@localhost:5432/emerald"
+DATABASE_URL="postgresql://postgres:password@localhost:5432/telegram_event_reservation_bot"
 TELEGRAM_BOT_TOKEN="your_token_here"
 TELEGRAM_BOT_NAME="your_bot_username"
 ENV="dev"
@@ -154,7 +154,7 @@ pnpm start:dev
 | `ENV` | `production` | Set to `dev` for debug logging |
 | `POSTGRES_USER` | `admin` | Docker Compose only |
 | `POSTGRES_PASSWORD` | `secret` | Docker Compose only |
-| `POSTGRES_DB` | `emerald` | Docker Compose only |
+| `POSTGRES_DB` | `telegram_event_reservation_bot` | Docker Compose only |
 
 ---
 
@@ -301,14 +301,14 @@ The included `docker-compose.yml` provides three services:
 - **URL**: `postgres:5432`
 - **Username**: `admin`
 - **Password**: `secret`
-- **Database**: `emerald`
+- **Database**: `telegram_event_reservation_bot`
 
 ### Adminer (Database GUI)
 - **URL**: `http://localhost:8080`
 - **User**: `admin`
 - **Password**: `secret`
 - **Server**: `postgres`
-- **Database**: `emerald`
+- **Database**: `telegram_event_reservation_bot`
 
 ### NestJS App
 - **URL**: `http://localhost:3000`
