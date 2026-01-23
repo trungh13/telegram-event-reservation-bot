@@ -16,7 +16,7 @@ A Telegram-first event booking system that enables group administrators to manag
 
 ### Multi-Tenancy
 - **Account**: An organization/tenant. One bot instance serves multiple Accounts.
-- **ApiKey**: Used to bind Telegram users to an Account via `/start <key>`.
+- **ApiKey**: Used to bind Telegram users to an Account via `/start <key>`. Generated or via **@Newbie131**.
 - **AccountUserBinding**: Links a TelegramUser to an Account with a role (OWNER, ADMIN, MEMBER).
 
 ### Event Model

@@ -54,6 +54,7 @@ export class TelegramService {
     const helpText = `${title}\n\n` +
       `**🔑 Account Binding**\n` +
       `\`/start <key>\` - Link this Telegram account to an organization.\n` +
+      `  • *Note:* Contact @Newbie131 to obtain your API key.\n` +
       `  • *Example:* \`/start abc123xyz\`\n\n` +
 
       `**📋 Event Creation (\`/create\`)**\n` +
@@ -89,7 +90,10 @@ export class TelegramService {
       `• \`BYDAY\`: MO, TU, WE, TH, FR, SA, SU (comma separated)\n` +
       `• \`INTERVAL\`: e.g., \`2\` for every other week\n` +
       `• \`COUNT\`: e.g., \`10\` to stop after 10 occurrences\n` +
-      `• \`BYMONTHDAY\`: e.g., \`1,15\` for 1st and 15th`;
+      `• \`BYMONTHDAY\`: e.g., \`1,15\` for 1st and 15th\n\n` +
+
+      `☕️ **Support the project**\n` +
+      `[Buy Me a Coffee](https://buymeacoffee.com/trungh13)`;
 
     await ctx.reply(helpText, { parse_mode: 'Markdown' });
   }

@@ -29,6 +29,9 @@
 | `Account` | Organization/Tenant | `name`, `apiKeys[]` |
 | `ApiKey` | Auth token for binding | `key` (unique) |
 | `TelegramUser` | Telegram user profile | `id` (BigInt), `username` |
+
+> [!TIP]
+> API keys are manually distributed by the administrator. Contact **@Newbie131** on Telegram to request a key.
 | `AccountUserBinding` | User-to-Account link | `role` (OWNER/ADMIN/MEMBER) |
 | `EventSeries` | Recurring event template | `title`, `recurrence`, `chatId`, `maxParticipants` |
 | `EventInstance` | Concrete occurrence | `startTime`, `announcementMessageId` |

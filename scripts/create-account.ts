@@ -41,6 +41,8 @@ key:  ${key}
 👇 Usage:
 telegram: /start ${key}
 Link:     https://t.me/${botName}?start=${key}
+
+Contact @Newbie131 for API key management.
   `);
 }
 
