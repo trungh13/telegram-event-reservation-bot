@@ -1,5 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { EventSeries, EventInstance } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf, Context, Markup } from 'telegraf';
@@ -50,28 +51,38 @@ export class SchedulerService {
     }
   }
 
-  public async processSeries(series: any, start: Date = new Date(), end?: Date) {
+  public async processSeries(
+    series: EventSeries,
+    start: Date = new Date(),
+    end?: Date,
+  ): Promise<void> {
     const horizon = end || new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { rrulestr, RRule } = require('rrule');
-    let rule: any;
-    
+    let rule: { between: (start: Date, end: Date, inc: boolean) => Date[] };
+
     this.debug(`processSeries - Series: ${series.title} (${series.id})`);
     this.debug(`processSeries - Recurrence: ${JSON.stringify(series.recurrence)}`);
-    
+
     const recurrence = series.recurrence;
     if (typeof recurrence === 'string') {
       try {
         const hasDtStart = recurrence.includes('DTSTART');
         this.debug(`processSeries - Using rrulestr, hasDtStart: ${hasDtStart}`);
-        rule = rrulestr(recurrence, hasDtStart ? {} : { dtstart: series.createdAt });
+        rule = rrulestr(
+          recurrence,
+          hasDtStart ? {} : { dtstart: series.createdAt },
+        );
       } catch (e) {
-        this.debug(`processSeries - rrulestr failed, falling back to RRule.fromString: ${e.message}`);
+        this.debug(
+          `processSeries - rrulestr failed, falling back to RRule.fromString: ${(e as Error).message}`,
+        );
         rule = RRule.fromString(recurrence);
       }
     } else {
       this.debug(`processSeries - Using new RRule(object)`);
       rule = new RRule({
-        ...recurrence,
+        ...(recurrence as Record<string, unknown>),
         dtstart: series.createdAt,
       });
     }
@@ -110,40 +121,46 @@ export class SchedulerService {
     }
   }
 
-  private async autoAnnounce(series: any, instance: any) {
+  private async autoAnnounce(series: EventSeries, instance: EventInstance): Promise<void> {
     if (!series.chatId) return;
 
     try {
-        const text = await this.eventService.formatAttendanceMessage(series, instance);
-        const keyboard = Markup.inlineKeyboard([
-          [
-            Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
-            Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
-            Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
-          ]
-        ]);
+      const text = await this.eventService.formatAttendanceMessage(series, instance);
+      const keyboard = Markup.inlineKeyboard([
+        [
+          Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
+          Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
+          Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
+        ],
+      ]);
 
-        const sentMsg = await this.bot.telegram.sendMessage(series.chatId.toString(), text, {
-            ...keyboard,
-            message_thread_id: series.topicId ? parseInt(series.topicId) : undefined,
-            parse_mode: 'Markdown',
-        });
+      const sentMsg = await this.bot.telegram.sendMessage(
+        series.chatId.toString(),
+        text,
+        {
+          ...keyboard,
+          message_thread_id: series.topicId ? parseInt(series.topicId) : undefined,
+          parse_mode: 'Markdown',
+        },
+      );
 
-        await (this.prisma.eventInstance as any).update({
-            where: { id: instance.id },
-            data: {
-                announcementMessageId: BigInt(sentMsg.message_id),
-                announcementChatId: BigInt(sentMsg.chat.id),
-            }
-        });
+      await this.prisma.eventInstance.update({
+        where: { id: instance.id },
+        data: {
+          announcementMessageId: BigInt(sentMsg.message_id),
+          announcementChatId: BigInt(sentMsg.chat.id),
+        },
+      });
 
-        this.logger.log(`Auto-announced instance ${instance.id} to chat ${series.chatId}`);
+      this.logger.log(`Auto-announced instance ${instance.id} to chat ${series.chatId}`);
     } catch (e) {
-        this.logger.error(`Failed to auto-announce instance ${instance.id}: ${e.message}`);
+      this.logger.error(
+        `Failed to auto-announce instance ${instance.id}: ${(e as Error).message}`,
+      );
     }
   }
 
-  private async notifyAdmins(series: any, instance: any) {
+  private async notifyAdmins(series: EventSeries, instance: EventInstance): Promise<void> {
     const admins = await this.prisma.accountUserBinding.findMany({
       where: {
         accountId: series.accountId,

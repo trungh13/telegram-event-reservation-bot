@@ -1,11 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectBot, Update, Start, Help, On, Ctx, Command, Action } from 'nestjs-telegraf';
 import { Context, Telegraf, Markup } from 'telegraf';
+import { EventSeries, EventInstance } from '@prisma/client';
 import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BindAccountSchema, CreateEventSeriesSchema } from './telegram.dto';
+
+interface TelegramMessage {
+  text?: string;
+  message_thread_id?: number;
+}
+
+interface SeriesWithInstances extends EventSeries {
+  instances: EventInstance[];
+}
 
 @Update()
 @Injectable()
@@ -32,7 +42,7 @@ export class TelegramService {
 
   @Start()
   async onStart(@Ctx() ctx: Context): Promise<void> {
-    const message = (ctx.message as any) || {};
+    const message = (ctx.message as TelegramMessage) || {};
     const text = message.text || '';
     const args = text.split(' ');
     const token = args.length > 1 ? args[1] : null;
@@ -161,16 +171,22 @@ export class TelegramService {
       return;
     }
 
-    const list = series.map(s => {
-        const anyS = s as any;
-        const target = anyS.chatId ? `🎯 Target: \`${anyS.chatId}\`` : '⚠️ No target';
-        return `📌 **${s.title}**\n` +
-               `ID: \`${s.id}\`\n` +
-               `${target}\n` +
-               `🔁 \`${s.recurrence}\``;
-    }).join('\n\n---\n\n');
+    const list = series
+      .map((s) => {
+        const target = s.chatId ? `🎯 Target: \`${s.chatId}\`` : '⚠️ No target';
+        return (
+          `📌 **${s.title}**\n` +
+          `ID: \`${s.id}\`\n` +
+          `${target}\n` +
+          `🔁 \`${s.recurrence}\``
+        );
+      })
+      .join('\n\n---\n\n');
 
-    await ctx.reply(`**Active Event Series:**\n\n${list}\n\n💡 _Tip: Use \`/announce <ID>\` to post a specific series._`, { parse_mode: 'Markdown' });
+    await ctx.reply(
+      `**Active Event Series:**\n\n${list}\n\n💡 _Tip: Use \`/announce <ID>\` to post a specific series._`,
+      { parse_mode: 'Markdown' },
+    );
   }
 
   @Command('id')
@@ -194,7 +210,7 @@ export class TelegramService {
       return;
     }
 
-    const message = ctx.message as any;
+    const message = (ctx.message as TelegramMessage) || {};
     const text = message.text || '';
     const args = text.replace('/create', '').trim();
     this.debug(`onCreate - args: "${args}"`);
@@ -308,35 +324,43 @@ export class TelegramService {
       return;
     }
 
-    const message = ctx.message as any;
+    const message = (ctx.message as TelegramMessage) || {};
     const text = message.text || '';
     const args = this.parseQuotedArgs(text).slice(1);
     const seriesId = args[0];
 
     if (!seriesId) {
-        await ctx.reply('⚠️ **Series ID is required.**\n\nPlease use `/announce <ID>`.\nYou can find the ID in `/list`.', { parse_mode: 'Markdown' });
-        return;
+      await ctx.reply(
+        '⚠️ **Series ID is required.**\n\nPlease use `/announce <ID>`.\nYou can find the ID in `/list`.',
+        { parse_mode: 'Markdown' },
+      );
+      return;
     }
 
     const activeSeries = await this.eventService.getActiveSeries(account.id);
-    const series = activeSeries.find(s => s.id === seriesId);
+    const series = activeSeries.find((s) => s.id === seriesId) as SeriesWithInstances | undefined;
 
     if (!series) {
-        await ctx.reply('Series not found or inactive.');
-        return;
+      await ctx.reply('Series not found or inactive.');
+      return;
     }
 
-    const instance = (series as any).instances?.[0];
-    this.debug(`onAnnounce - Found series: ${series.title}, Instances count: ${(series as any).instances?.length}`);
+    const instance = series.instances?.[0];
+    this.debug(
+      `onAnnounce - Found series: ${series.title}, Instances count: ${series.instances?.length}`,
+    );
 
     if (!instance) {
       await ctx.reply('No instances materialized yet.');
       return;
     }
 
-    if ((instance as any).announcementMessageId) {
-        await ctx.reply('⚠️ **Already Announced**\n\nThis event has already been posted to the group.', { parse_mode: 'Markdown' });
-        return;
+    if (instance.announcementMessageId) {
+      await ctx.reply(
+        '⚠️ **Already Announced**\n\nThis event has already been posted to the group.',
+        { parse_mode: 'Markdown' },
+      );
+      return;
     }
 
     const announcement = await this.eventService.formatAttendanceMessage(series, instance);
@@ -345,31 +369,31 @@ export class TelegramService {
         Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
         Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
         Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
-      ]
+      ],
     ]);
 
-    const targetChat = (series as any).chatId?.toString();
-    const targetTopic = (series as any).topicId;
+    const targetChat = series.chatId?.toString();
+    const targetTopic = series.topicId;
 
     if (targetChat) {
-        this.debug(`onAnnounce - Posting to target: ${targetChat}, topic: ${targetTopic}`);
-        const sentMsg = await ctx.telegram.sendMessage(targetChat, announcement, {
-            ...keyboard,
-            message_thread_id: targetTopic ? parseInt(targetTopic) : undefined,
-            parse_mode: 'Markdown',
-        });
-        
-        await (this.prisma.eventInstance as any).update({
-            where: { id: instance.id },
-            data: {
-                announcementMessageId: BigInt(sentMsg.message_id),
-                announcementChatId: BigInt(sentMsg.chat.id),
-            }
-        });
+      this.debug(`onAnnounce - Posting to target: ${targetChat}, topic: ${targetTopic}`);
+      const sentMsg = await ctx.telegram.sendMessage(targetChat, announcement, {
+        ...keyboard,
+        message_thread_id: targetTopic ? parseInt(targetTopic) : undefined,
+        parse_mode: 'Markdown',
+      });
 
-        await ctx.reply(`✅ Announced to target group!`);
+      await this.prisma.eventInstance.update({
+        where: { id: instance.id },
+        data: {
+          announcementMessageId: BigInt(sentMsg.message_id),
+          announcementChatId: BigInt(sentMsg.chat.id),
+        },
+      });
+
+      await ctx.reply(`✅ Announced to target group!`);
     } else {
-        await ctx.reply(announcement, { ...keyboard, parse_mode: 'Markdown' });
+      await ctx.reply(announcement, { ...keyboard, parse_mode: 'Markdown' });
     }
   }
 
@@ -377,70 +401,79 @@ export class TelegramService {
   @On('text')
   async onMessage(@Ctx() ctx: Context): Promise<void> {
     // Catch-all for other text messages
-    const message = ctx.message as any;
+    const message = (ctx.message as TelegramMessage) || {};
     const text = message.text || '';
-    
+
     // If it's a command that didn't match anything above, we can ignore or log
     if (text.startsWith('/')) {
-        return;
+      return;
     }
 
     this.logger.log(`Received message: ${text}`);
   }
 
   @Action(/JOIN:(.+)/)
-  async onJoin(@Ctx() ctx: Context): Promise<any> {
-    const instanceId = (ctx as any).match[1];
+  async onJoin(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const instanceId = match[1];
     await this.recordVote(ctx, instanceId, 'JOIN');
   }
 
   @Action(/PLUS_ONE:(.+)/)
-  async onPlusOne(@Ctx() ctx: Context): Promise<any> {
-    const instanceId = (ctx as any).match[1];
+  async onPlusOne(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const instanceId = match[1];
     await this.recordVote(ctx, instanceId, 'PLUS_ONE');
   }
 
   @Action(/LEAVE:(.+)/)
-  async onLeave(@Ctx() ctx: Context): Promise<any> {
-    const instanceId = (ctx as any).match[1];
+  async onLeave(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const instanceId = match[1];
     await this.recordVote(ctx, instanceId, 'LEAVE');
   }
 
-  private async recordVote(ctx: Context, instanceId: string, action: string) {
+  private async recordVote(ctx: Context, instanceId: string, action: string): Promise<void> {
     try {
       const instance = await this.prisma.eventInstance.findUnique({
         where: { id: instanceId },
-        include: { series: true }
+        include: { series: true },
       });
 
       if (!instance) {
-          await ctx.answerCbQuery('Instance not found.');
-          return;
+        await ctx.answerCbQuery('Instance not found.');
+        return;
       }
 
       // Capacity Check
       if (action === 'JOIN' || action === 'PLUS_ONE') {
-          const participants = await this.prisma.participationLog.findMany({
-              where: { instanceId: instance.id },
-          });
-          const latestVotes = new Map<string, string>();
-          for (const p of participants) {
-              latestVotes.set(p.telegramUserId.toString(), p.action);
-          }
-          
-          let currentCount = 0;
-          for (const [uid, act] of Array.from(latestVotes.entries())) {
-              // Exclude current user from count to calculate potential new total
-              if (uid === ctx.from!.id.toString()) continue;
-              if (act === 'JOIN') currentCount += 1;
-              if (act === 'PLUS_ONE') currentCount += 2;
-          }
+        const participants = await this.prisma.participationLog.findMany({
+          where: { instanceId: instance.id },
+        });
+        const latestVotes = new Map<string, string>();
+        for (const p of participants) {
+          latestVotes.set(p.telegramUserId.toString(), p.action);
+        }
 
-          const added = action === 'PLUS_ONE' ? 2 : 1;
-          if ((instance.series as any).maxParticipants && (currentCount + added > (instance.series as any).maxParticipants)) {
-              await ctx.answerCbQuery(`⚠️ Sorry, only ${(instance.series as any).maxParticipants - currentCount} slots left!`, { show_alert: true });
-              return;
-          }
+        let currentCount = 0;
+        for (const [uid, act] of Array.from(latestVotes.entries())) {
+          // Exclude current user from count to calculate potential new total
+          if (uid === ctx.from!.id.toString()) continue;
+          if (act === 'JOIN') currentCount += 1;
+          if (act === 'PLUS_ONE') currentCount += 2;
+        }
+
+        const added = action === 'PLUS_ONE' ? 2 : 1;
+        if (
+          instance.series.maxParticipants &&
+          currentCount + added > instance.series.maxParticipants
+        ) {
+          await ctx.answerCbQuery(
+            `⚠️ Sorry, only ${instance.series.maxParticipants - currentCount} slots left!`,
+            { show_alert: true },
+          );
+          return;
+        }
       }
 
       await this.participationService.recordParticipation({
@@ -457,31 +490,33 @@ export class TelegramService {
       await ctx.answerCbQuery(`You ${action === 'LEAVE' ? 'left' : 'joined'}!`);
 
       // Live Update
-      if ((instance as any).announcementMessageId && (instance as any).announcementChatId) {
-          const updatedText = await this.eventService.formatAttendanceMessage(instance.series, instance);
-          const keyboard = Markup.inlineKeyboard([
-            [
-              Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
-              Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
-              Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
-            ]
-          ]);
+      if (instance.announcementMessageId && instance.announcementChatId) {
+        const updatedText = await this.eventService.formatAttendanceMessage(
+          instance.series,
+          instance,
+        );
+        const keyboard = Markup.inlineKeyboard([
+          [
+            Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
+            Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
+            Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
+          ],
+        ]);
 
-          try {
-              await ctx.telegram.editMessageText(
-                  (instance as any).announcementChatId.toString(),
-                  Number((instance as any).announcementMessageId),
-                  undefined,
-                  updatedText,
-                  { ...keyboard, parse_mode: 'Markdown' }
-              );
-          } catch (e) {
-              this.logger.error(`Failed to edit message: ${e.message}`);
-          }
+        try {
+          await ctx.telegram.editMessageText(
+            instance.announcementChatId.toString(),
+            Number(instance.announcementMessageId),
+            undefined,
+            updatedText,
+            { ...keyboard, parse_mode: 'Markdown' },
+          );
+        } catch (e) {
+          this.logger.error(`Failed to edit message: ${(e as Error).message}`);
+        }
       }
-
     } catch (error) {
-      this.logger.error(`Error recording vote: ${error.message}`);
+      this.logger.error(`Error recording vote: ${(error as Error).message}`);
       await ctx.answerCbQuery('Error recording vote.');
     }
   }
