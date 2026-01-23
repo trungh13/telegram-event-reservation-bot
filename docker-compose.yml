@@ -1,5 +1,18 @@
 version: '3.8'
 services:
+  app:
+    build: .
+    container_name: emerald_app
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-emerald}?schema=public
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_NAME=${TELEGRAM_BOT_NAME}
+    depends_on:
+      - postgres
+    ports:
+      - "3000:3000"
+
   postgres:
     image: postgres:15-alpine
     container_name: emerald_postgres
