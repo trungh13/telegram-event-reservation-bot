@@ -39,7 +39,8 @@ services:
     ports:
       - "3000:3000"
 
-  # Recommended: Disable/Remove Adminer for long-term production
+  # --- Database Admin UI (Debug Only) ---
+  # Start with: docker-compose --profile debug up adminer
   adminer:
     image: adminer
     container_name: telegram_event_reservation_bot_adminer

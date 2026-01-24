@@ -46,23 +46,34 @@ pnpm prisma migrate dev
 pnpm start:dev
 ```
 
-### Docker Deployment (Raspberry Pi / Server)
+### Docker Deployment (Production / Raspberry Pi / Server)
 
-This project is fully containerized and compatible with ARM/x86 architectures.
+This project is fully containerized and follows production-grade patterns.
 
 ```bash
-# Start all services (App, DB, Adminer)
+# Start all services (DB → Migrations → App)
 docker-compose up -d --build
 ```
 
-The app will:
-1. Start a PostgreSQL 15 database.
-2. Run database migrations automatically.
-3. Start the NestJS application on port 3000.
-4. Launch Adminer on port 8080 for database management.
+**Startup Flow:**
+1. PostgreSQL starts and becomes healthy.
+2. Migration service runs `prisma migrate deploy` (one-shot, exits on completion).
+3. Application starts only after migrations succeed.
+
+**Optional: Database Admin UI**
+```bash
+# Start Adminer temporarily for debugging
+docker-compose --profile debug up adminer
+
+# Stop when done
+docker-compose --profile debug stop adminer
+```
 
 > [!TIP]
 > Ensure your `.env` file has the correct `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_NAME` before starting.
+
+> [!IMPORTANT]
+> **Recommended**: Use a VM (not LXC) for production. Access only via Cloudflare Tunnel or ngrok for HTTPS.
 
 ---
 

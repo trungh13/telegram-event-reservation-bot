@@ -1,9 +1,9 @@
 # --- Build Stage ---
-FROM node:20-alpine AS builder
+FROM node:20.18.1-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies needed for node-gyp or other native modules if any
+# Install dependencies needed for node-gyp or other native modules
 RUN apk add --no-cache openssl
 
 # Install pnpm
@@ -26,7 +26,7 @@ RUN pnpm prisma generate
 RUN pnpm build
 
 # --- Production Stage ---
-FROM node:20-alpine AS runner
+FROM node:20.18.1-alpine AS runner
 
 WORKDIR /app
 
@@ -48,6 +48,5 @@ USER node
 # Expose port (NestJS default is 3000)
 EXPOSE 3000
 
-# Start command: run migrations then start the app
-# Note: In a true production environment, you might run migrations as a separate CI step
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+# Application entrypoint - NO migrations here
+CMD ["node", "dist/main"]
