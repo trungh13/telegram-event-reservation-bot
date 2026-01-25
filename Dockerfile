@@ -49,4 +49,4 @@ USER node
 EXPOSE 3000
 
 # Application entrypoint - Fixed: use dist/src/main path (NestJS nest-cli.json sourceRoot: src)
-CMD [node, dist/src/main]
+CMD ["node", "dist/src/main"]
