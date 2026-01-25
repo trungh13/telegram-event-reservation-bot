@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [CMD-SHELL, pg_isready -U ${POSTGRES_USER}]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,8 +23,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: [npx, prisma, migrate, deploy]
-    restart: no
+    command: ["npx", "prisma", "migrate", "deploy"]
+    restart: "no"
 
   app:
     build: .
