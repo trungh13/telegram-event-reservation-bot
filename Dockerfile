@@ -48,5 +48,5 @@ USER node
 # Expose port (NestJS default is 3000)
 EXPOSE 3000
 
-# Application entrypoint - NO migrations here
-CMD ["node", "dist/main"]
+# Application entrypoint - Fixed: use dist/src/main path (NestJS nest-cli.json sourceRoot: src)
+CMD ["node", "dist/src/main"]
