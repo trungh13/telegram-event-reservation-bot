@@ -19,8 +19,8 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
-# Generate Prisma client
-RUN pnpm prisma generate
+# Generate Prisma client (provide dummy DATABASE_URL for build)
+RUN DATABASE_URL=postgresql://dummy:dummy@dummy:5432/dummy pnpm prisma generate
 
 # Build the app
 RUN pnpm build
@@ -49,4 +49,4 @@ USER node
 EXPOSE 3000
 
 # Application entrypoint - Fixed: use dist/src/main path (NestJS nest-cli.json sourceRoot: src)
-CMD ["node", "dist/src/main"]
+CMD [node, dist/src/main]
