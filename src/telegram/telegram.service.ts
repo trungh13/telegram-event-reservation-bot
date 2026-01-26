@@ -64,7 +64,7 @@ export class TelegramService {
     const helpText = `${title}\n\n` +
       `**🔑 Account Binding**\n` +
       `\`/start <key>\` - Link this Telegram account to an organization.\n` +
-      `  • *Note:* Contact @Newbie131 to obtain your API key.\n` +
+      `  • *Note:* Contact @trungh13 to obtain your API key.\n` +
       `  • *Example:* \`/start abc123xyz\`\n\n` +
 
       `**📋 Event Creation (\`/create\`)**\n` +

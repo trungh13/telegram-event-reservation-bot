@@ -22,7 +22,7 @@ A Telegram-first event booking system that enables group administrators to:
 - Track real-time attendance via live-updating messages
 
 > [!NOTE]
-> To obtain an API key for your organization, please contact **[@Newbie131](https://t.me/Newbie131)** on Telegram.
+> To obtain an API key for your organization, please contact **[@trungh13](https://t.me/Newbie131)** on Telegram.
 
 ---
 

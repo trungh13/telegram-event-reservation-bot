@@ -42,7 +42,7 @@ key:  ${key}
 telegram: /start ${key}
 Link:     https://t.me/${botName}?start=${key}
 
-Contact @Newbie131 for API key management.
+Contact @trungh13 for API key management.
   `);
 }
 
