@@ -51,10 +51,12 @@
 | :--- | :--- | :--- | :--- |
 | `title` | Yes | | Event name |
 | `rrule` | Yes | | iCal recurrence rule |
-| `group` | Yes | `chat` | Target Telegram group ID |
+| `group` | Yes | `chat` | Target Telegram group ID (must be negative, e.g., `-1001234567890`) |
 | `date` | No | `start` | First occurrence (`dd/mm/yyyy HH:mm`) |
 | `limit` | No | | Max participants |
 | `topic` | No | | Forum topic ID |
+
+> **Note:** Group IDs are always negative (start with `-100`). Private chat IDs are positive. Use `/id` in a group to get its ID.
 
 **Examples:**
 ```

@@ -301,7 +301,7 @@ docker compose restart app           # Restart the bot
 ## Common Gotchas
 
 1. **Timezone defaults to Europe/Helsinki**: In `EventSeries`, timezone defaults to `'Europe/Helsinki'` even if not specified in `/create`
-2. **Group IDs must be negative**: Format is always negative BigInt (e.g., `-100123456789`)
+2. **Group IDs must be negative**: Private chats have positive IDs (e.g., `123456789`), groups/supergroups have negative IDs starting with `-100` (e.g., `-1001234567890`). The `/create` command validates this and rejects positive IDs with a helpful message.
 3. **ParticipationLog is append-only**: No updates, only inserts. Latest action per user is computed on-read
 4. **RRule without DTSTART**: Must pass `dtstart` explicitly to `rrulestr()` or it uses epoch
 5. **Telegram BigInt IDs**: Must use `BigInt()` constructor, not `parseInt()`, to avoid overflow

@@ -258,6 +258,21 @@ export class TelegramService {
       return;
     }
 
+    // Validate group ID format - must be negative (groups/supergroups start with -100)
+    const groupId = BigInt(group);
+    if (groupId > 0) {
+      await ctx.reply(
+        '❌ **Invalid group ID**\n\n' +
+        `The ID \`${group}\` is a private chat, not a group.\n\n` +
+        '**To get a group ID:**\n' +
+        '1. Add me to your Telegram group\n' +
+        '2. Run `/id` in that group\n' +
+        '3. Group IDs are negative (e.g., `-1001234567890`)',
+        { parse_mode: 'Markdown' }
+      );
+      return;
+    }
+
     const validation = CreateEventSeriesSchema.safeParse({ title, recurrence, chatId: group, topicId: topic });
     if (!validation.success) {
       await ctx.reply(`❌ Validation Error:\n${validation.error.issues.map(e => `- ${e.message}`).join('\n')}`);

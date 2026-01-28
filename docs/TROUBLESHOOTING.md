@@ -320,6 +320,31 @@ pnpm prisma migrate deploy
 
 ---
 
+### /create with Private Chat ID
+
+**Error**: `❌ Invalid group ID - The ID is a private chat, not a group`
+
+**Cause**: You used your personal chat ID instead of a group ID
+
+**How to identify**:
+- Private chat IDs are **positive** (e.g., `123456789`)
+- Group/supergroup IDs are **negative** and start with `-100` (e.g., `-1001234567890`)
+
+**Solution**:
+1. Add the bot to your Telegram **group** (not private chat)
+2. Run `/id` inside that group
+3. Use the negative ID shown in your `/create` command
+
+```
+# Wrong - private chat ID
+/create title="Event" rrule="FREQ=DAILY" group="123456789"
+
+# Correct - group ID
+/create title="Event" rrule="FREQ=DAILY" group="-1001234567890"
+```
+
+---
+
 ### /create with Invalid RRule
 
 **Error**: `❌ Invalid recurrence rule`
@@ -653,6 +678,7 @@ docker-compose exec postgres psql -U admin -d telegram_event_reservation_bot -c 
 | `Invalid API key` | Bad token format | Get token from @BotFather |
 | `RRULE_INVALID` | Bad recurrence syntax | Check FREQ=... format |
 | `group is required` | Missing group flag | Add `group="-100..."`  |
+| `Invalid group ID` | Used private chat ID | Use `/id` in a group, IDs must be negative |
 | `No instances materialized` | Too early, cron pending | Wait for midnight or test manually |
 | `Already announced` | Event posted before | Use new instance or delete message |
 | `Cannot access group` | Bot not in group | Add bot to target group |
