@@ -64,7 +64,7 @@ pnpm create-account "Org Name"  # Create test organization with API key
 **Core Modules** (business logic):
 - **TelegramModule**: Bot commands (`/start`, `/create`, `/list`, `/announce`, `/id`, `/help`) and inline voting buttons
 - **EventModule**: Event series CRUD, instance materialization, message formatting
-- **SchedulerModule**: Daily cron (midnight) that materializes EventInstances 48h ahead and auto-announces
+- **SchedulerModule**: Cron (every minute) that materializes EventInstances ~5-10 mins before start and auto-announces
 - **ParticipationModule**: Append-only vote logging (JOIN, LEAVE, PLUS_ONE actions)
 - **AccountModule**: Multi-tenant management (API keys, user-to-account bindings)
 - **TelegramUserModule**: User profile upsert from Telegram data
@@ -97,10 +97,10 @@ TelegramUser (independent of Account)
 
 1. User runs `/create title="Event" rrule="FREQ=WEEKLY" group="-100123"`
 2. **TelegramService.onCreate** parses named args, validates via Zod schema
-3. **EventService.createSeries** creates EventSeries record
-4. **SchedulerService.processSeries** immediately materializes instances (48h window)
-5. **SchedulerService.autoAnnounce** posts to group if `chatId` set
-6. Daily cron (midnight) runs **SchedulerService.materializeInstances** for all active series
+3. **EventService.createSeries** creates EventSeries record (no immediate materialization)
+4. Cron runs every minute, checks for events starting in next 10 minutes
+5. **SchedulerService.processSeries** materializes instance ~5-10 mins before start
+6. **SchedulerService.autoAnnounce** posts to group if `chatId` set
 
 ### Data Flow for Voting
 

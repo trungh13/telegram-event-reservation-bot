@@ -86,11 +86,13 @@ Returns current chat ID, type, and topic ID (if applicable).
 
 ## Scheduling Logic
 
-1. **Cron**: Runs daily at midnight (`0 0 * * *`)
-2. **Window**: Materializes instances 48 hours ahead
+1. **Cron**: Runs every minute (`* * * * *`)
+2. **Window**: Materializes instances ~5-10 minutes before start (just-in-time)
 3. **RRule**: Uses `rrulestr` for complex recurrence patterns
 4. **Auto-Announce**: Posts to `chatId` if set, stores `announcementMessageId`
 5. **Notifications**: Alerts OWNER/ADMIN via private message
+
+> **Design Decision**: Just-in-time materialization prevents spamming groups with multiple announcements when a series is created. Instances are announced only minutes before they start.
 
 ---
 

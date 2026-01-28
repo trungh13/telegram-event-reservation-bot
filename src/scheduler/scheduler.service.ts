@@ -17,9 +17,9 @@ export class SchedulerService {
     private readonly eventService: EventService,
   ) {}
 
-  @Cron('0 0 * * *')
+  @Cron('* * * * *') // Run every minute
   async handleCron() {
-    this.logger.log('Running materialization cron at midnight...');
+    this.debug('Running materialization cron...');
     await this.materializeInstances();
   }
 
@@ -29,8 +29,7 @@ export class SchedulerService {
     });
 
     const now = new Date();
-    const horizon = new Date();
-    horizon.setDate(now.getDate() + 2); // 48h / approx next day window
+    const horizon = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes ahead
 
     for (const series of activeSeries) {
       try {
@@ -56,7 +55,8 @@ export class SchedulerService {
     start: Date = new Date(),
     end?: Date,
   ): Promise<void> {
-    const horizon = end || new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // Default to 10 minutes ahead (just-in-time materialization)
+    const horizon = end || new Date(start.getTime() + 10 * 60 * 1000);
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { rrulestr, RRule } = require('rrule');
     let rule: { between: (start: Date, end: Date, inc: boolean) => Date[] };

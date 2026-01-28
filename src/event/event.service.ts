@@ -51,8 +51,8 @@ export class EventService {
       },
     });
 
-    // Trigger immediate materialization
-    await this.schedulerService.processSeries(series);
+    // No immediate materialization - cron runs every minute and will
+    // materialize instances ~5-10 minutes before their start time
 
     return series;
   }
