@@ -271,6 +271,33 @@ Uses `ctx.telegram.editMessageText()` with same keyboard buttons. If edit fails 
 
 ---
 
+## Production Infrastructure
+
+The bot runs on a VM hosted on a Raspberry Pi 5:
+
+```bash
+# Access via Tailscale
+ssh rp5                    # Connect to Raspberry Pi 5
+
+# Access via LAN
+ssh rp5.local              # Connect to Raspberry Pi 5 (local network)
+
+# Then SSH to the telegram-bot VM
+ssh telegram-bot           # From rp5, connect to the VM running the bot
+
+# App location on VM
+cd ~/apps/telegram-event-reservation-bot
+
+# Common production commands
+docker compose logs -f app           # View app logs
+docker compose exec app npm run create-account  # Create new account
+docker compose restart app           # Restart the bot
+```
+
+**Helper script**: `./create-account.sh` automates SSH chain to create accounts.
+
+---
+
 ## Common Gotchas
 
 1. **Timezone defaults to Europe/Helsinki**: In `EventSeries`, timezone defaults to `'Europe/Helsinki'` even if not specified in `/create`
