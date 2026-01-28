@@ -4,14 +4,9 @@ import { Pool } from 'pg';
 import * as crypto from 'crypto';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 
-// ES module compatibility for __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load env from project root
-dotenv.config({ path: path.join(__dirname, '../.env') });
+// Load env from project root (script runs via npm from project root)
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 const connectionString = process.env.DATABASE_URL;
 
