@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Stack**: NestJS 11 + PostgreSQL + Telegraf + Prisma
 - **Type**: Telegram bot service (multi-tenant SaaS)
 - **Current Phase**: Phase 2.8 (Documentation complete) → Phase 3 (Stripe monetization planned)
+- **Quick Start**: `cp .env.example .env && docker-compose up -d --build`
 
 ---
 
@@ -36,7 +37,8 @@ pnpm prisma studio         # Open visual database explorer on localhost:5555
 pnpm test                   # Run all unit tests once
 pnpm test:watch            # Watch mode (re-run on file changes)
 pnpm test:cov              # Generate coverage report
-pnpm test -- --testNamePattern="pattern"  # Run tests matching pattern
+pnpm test scheduler.service.spec.ts        # Run specific test file
+pnpm test -- --testNamePattern="pattern"   # Run tests matching pattern
 pnpm test:e2e              # Run E2E tests
 pnpm test:debug            # Run with Node debugger
 ```
@@ -180,8 +182,8 @@ src/
 
 **Required**:
 - `DATABASE_URL`: PostgreSQL connection (format: `postgresql://user:pass@host:5432/db?schema=public`)
-- `TELEGRAM_BOT_TOKEN`: From @BotFather (format: `123456:ABCdef...`)
-- `TELEGRAM_BOT_NAME`: Bot username without @ (e.g., `my_event_bot`)
+- `TELEGRAM_BOT_TOKEN`: From @BotFather (format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+- `TELEGRAM_BOT_NAME`: Bot username without @ prefix (e.g., `my_event_bot`, not `@my_event_bot`)
 
 **Optional**:
 - `ENV=dev`: Enable debug logging (shows parsed commands, cron details, RRule parsing)
@@ -278,4 +280,5 @@ Uses `ctx.telegram.editMessageText()` with same keyboard buttons. If edit fails 
 5. **Telegram BigInt IDs**: Must use `BigInt()` constructor, not `parseInt()`, to avoid overflow
 6. **Prisma schema changes**: Always run `pnpm prisma migrate dev` to generate client, not just `prisma generate`
 7. **Circular module imports**: EventModule ↔ SchedulerModule use `forwardRef()` - do not remove or app won't boot
+8. **Docker DATABASE_URL**: Use `postgres` (service name) not `localhost` when running in Docker
 
