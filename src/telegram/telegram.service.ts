@@ -93,6 +93,7 @@ export class TelegramService {
 
       `**🔧 Utilities**\n` +
       `• \`/list\` - Show all your active event series.\n` +
+      `• \`/remove <id>\` - Remove/deactivate an event series.\n` +
       `• \`/id\` - Get the current chat's ID (use in a group).\n\n` +
 
       `**📖 RRule Cheat Sheet**\n` +
@@ -412,6 +413,53 @@ export class TelegramService {
     }
   }
 
+  @Command('remove')
+  async onRemove(@Ctx() ctx: Context): Promise<void> {
+    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    if (!account) {
+      await ctx.reply('Admin only. Link your account first.');
+      return;
+    }
+
+    const message = (ctx.message as TelegramMessage) || {};
+    const text = message.text || '';
+    const args = this.parseQuotedArgs(text).slice(1);
+    const seriesId = args[0];
+
+    if (!seriesId) {
+      await ctx.reply(
+        '⚠️ **Series ID is required.**\n\nUsage: `/remove <ID>`\nYou can find the ID in `/list`.',
+        { parse_mode: 'Markdown' },
+      );
+      return;
+    }
+
+    // Find the series and verify it belongs to this account
+    const series = await this.prisma.eventSeries.findFirst({
+      where: {
+        id: seriesId,
+        accountId: account.id,
+      },
+    });
+
+    if (!series) {
+      await ctx.reply('❌ Series not found or you don\'t have permission to remove it.');
+      return;
+    }
+
+    // Soft delete - set isActive to false
+    await this.prisma.eventSeries.update({
+      where: { id: seriesId },
+      data: { isActive: false },
+    });
+
+    await ctx.reply(
+      `✅ **Series Removed**\n\n` +
+      `"${series.title}" has been deactivated.\n` +
+      `Future instances will not be created or announced.`,
+      { parse_mode: 'Markdown' },
+    );
+  }
 
   @On('text')
   async onMessage(@Ctx() ctx: Context): Promise<void> {

@@ -78,6 +78,10 @@ Posts event card to target group. Prevents duplicates.
 
 Returns all series for user's Account with IDs and targets.
 
+### `/remove <series_id>` - Remove Event Series
+
+Deactivates an event series (soft delete). Future instances will not be created or announced.
+
 ### `/id` - Get Chat Info
 
 Returns current chat ID, type, and topic ID (if applicable).

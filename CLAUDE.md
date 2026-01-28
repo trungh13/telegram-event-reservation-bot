@@ -62,7 +62,7 @@ pnpm create-account "Org Name"  # Create test organization with API key
 ### Module Organization
 
 **Core Modules** (business logic):
-- **TelegramModule**: Bot commands (`/start`, `/create`, `/list`, `/announce`, `/id`, `/help`) and inline voting buttons
+- **TelegramModule**: Bot commands (`/start`, `/create`, `/list`, `/remove`, `/announce`, `/id`, `/help`) and inline voting buttons
 - **EventModule**: Event series CRUD, instance materialization, message formatting
 - **SchedulerModule**: Cron (every minute) that materializes EventInstances ~5-10 mins before start and auto-announces
 - **ParticipationModule**: Append-only vote logging (JOIN, LEAVE, PLUS_ONE actions)
