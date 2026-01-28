@@ -51,3 +51,4 @@ EXPOSE 3000
 
 # Application entrypoint - Fixed: use dist/src/main path (NestJS nest-cli.json sourceRoot: src)
 CMD ["node", "dist/src/main"]
+COPY --from=builder --chown=node:node /app/scripts ./scripts
