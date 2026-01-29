@@ -4,6 +4,7 @@ import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { WizardHandler } from './wizard.handler';
 import { Context } from 'telegraf';
 import { getBotToken } from 'nestjs-telegraf';
 
@@ -11,6 +12,7 @@ describe('TelegramService', () => {
   let service: TelegramService;
   let mockAccountService: any;
   let mockEventService: any;
+  let mockWizardHandler: any;
 
   const mockBot = {
     telegram: {
@@ -48,6 +50,24 @@ describe('TelegramService', () => {
       participationLog: {
         findMany: jest.fn().mockResolvedValue([]),
       },
+      eventSeries: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+
+    mockWizardHandler = {
+      startWizard: jest.fn(),
+      handleTextInput: jest.fn().mockResolvedValue(false),
+      handleGroupIdInput: jest.fn().mockResolvedValue(false),
+      handleFrequency: jest.fn(),
+      handleDay: jest.fn(),
+      handleTime: jest.fn(),
+      handleGroup: jest.fn(),
+      handleLimit: jest.fn(),
+      handleConfirm: jest.fn(),
+      handleCancel: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -57,6 +77,7 @@ describe('TelegramService', () => {
         { provide: EventService, useValue: mockEventService },
         { provide: ParticipationService, useValue: mockParticipationService },
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: WizardHandler, useValue: mockWizardHandler },
         { provide: getBotToken(), useValue: mockBot },
       ],
     }).compile();
@@ -79,37 +100,12 @@ describe('TelegramService', () => {
   });
 
   describe('onCreate (/create)', () => {
-    it('should require group parameter', async () => {
-      const ctx = createCtx('/create title="Yoga" rrule="FREQ=DAILY"'); // missing group
-      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
+    it('should start the wizard flow', async () => {
+      const ctx = createCtx('/create');
 
       await service.onCreate(ctx);
 
-      expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('`group` is required'),
-        expect.anything(),
-      );
-    });
-
-    it('should support named arguments with group', async () => {
-      const ctx = createCtx(
-        '/create title="Yoga" rrule="FREQ=DAILY" group="-100123"',
-      );
-      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
-      mockEventService.createSeries.mockResolvedValue({
-        id: '123',
-        title: 'Yoga',
-      });
-
-      await service.onCreate(ctx);
-
-      expect(mockEventService.createSeries).toHaveBeenCalledWith(
-        'acc_123',
-        expect.objectContaining({
-          title: 'Yoga',
-          recurrence: 'FREQ=DAILY',
-        }),
-      );
+      expect(mockWizardHandler.startWizard).toHaveBeenCalledWith(ctx);
     });
   });
 
