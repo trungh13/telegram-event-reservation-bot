@@ -185,4 +185,34 @@ export const Keyboards: any = {
     Markup.inlineKeyboard([
       [Markup.button.callback('➕ Create Event', 'wizard:start')],
     ]),
+
+  // Audit logs - instance selection
+  auditLogInstances: (instances: Array<{ id: string; title: string }>) => {
+    const buttons = instances.map((inst) => [
+      Markup.button.callback(inst.title, `audit:view:${inst.id}`),
+    ]);
+    buttons.push([Markup.button.callback('❌ Close', 'audit:close')]);
+    return Markup.inlineKeyboard(buttons);
+  },
+
+  // Audit logs - view with pagination
+  auditLogView: (instanceId: string, hasMore: boolean) => {
+    const buttons: ReturnType<typeof Markup.button.callback>[] = [];
+
+    if (hasMore) {
+      buttons.push(
+        Markup.button.callback('📋 Show All', `audit:all:${instanceId}`),
+      );
+    }
+
+    buttons.push(Markup.button.callback('⬅️ Back', 'audit:back'));
+
+    return Markup.inlineKeyboard([buttons]);
+  },
+
+  // Audit logs - back button
+  auditLogBack: () =>
+    Markup.inlineKeyboard([
+      [Markup.button.callback('⬅️ Back', 'audit:back')],
+    ]),
 };

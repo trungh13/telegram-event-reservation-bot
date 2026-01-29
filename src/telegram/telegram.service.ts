@@ -15,6 +15,7 @@ import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
 import { GroupService } from '../account/group.service';
+import { AuditLogViewService } from '../participation/audit-log-view.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BindAccountSchema, CreateEventSeriesSchema } from './telegram.dto';
 import { WizardHandler } from './wizard.handler';
@@ -41,6 +42,7 @@ export class TelegramService {
     private readonly eventService: EventService,
     private readonly participationService: ParticipationService,
     private readonly groupService: GroupService,
+    private readonly auditLogViewService: AuditLogViewService,
     private readonly prisma: PrismaService,
     private readonly wizardHandler: WizardHandler,
   ) {}
@@ -379,6 +381,38 @@ export class TelegramService {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   }
 
+  @Command('audit-logs')
+  async onAuditLogs(@Ctx() ctx: Context): Promise<void> {
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
+    if (!account) {
+      await ctx.reply('❌ Please link your account first with /start <key>');
+      return;
+    }
+
+    const instances = await this.auditLogViewService.getInstancesWithActivity(
+      account.id,
+    );
+
+    if (instances.length === 0) {
+      await ctx.reply(
+        '📋 **Audit Logs:**\n\nNo events with activity found.',
+      );
+      return;
+    }
+
+    const formattedInstances = instances.map((inst) => ({
+      id: inst.id,
+      title: inst.series.title,
+    }));
+
+    await ctx.reply('📋 **Audit Logs:**\n\nSelect an event to view actions:', {
+      parse_mode: 'Markdown',
+      ...Keyboards.auditLogInstances(formattedInstances),
+    });
+  }
+
   @On('text')
   async onMessage(@Ctx() ctx: Context): Promise<void> {
     const message = (ctx.message as TelegramMessage) || {};
@@ -529,6 +563,90 @@ export class TelegramService {
   async onListEdit(@Ctx() ctx: Context): Promise<void> {
     await ctx.answerCbQuery();
     await ctx.reply('✏️ Edit feature coming soon!');
+  }
+
+  // Audit logs action handlers
+  @Action(/audit:view:(.+)/)
+  async onAuditView(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const instanceId = match[1];
+    await ctx.answerCbQuery();
+
+    const result = await this.auditLogViewService.getInstanceAuditLogs(
+      instanceId,
+      10,
+    );
+    const message = this.auditLogViewService.formatAuditLogMessage(
+      result.logs,
+      result.logs.length,
+      result.total,
+    );
+
+    await ctx.reply(message, {
+      parse_mode: 'Markdown',
+      ...Keyboards.auditLogView(instanceId, result.hasMore),
+    });
+  }
+
+  @Action(/audit:all:(.+)/)
+  async onAuditViewAll(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const instanceId = match[1];
+    await ctx.answerCbQuery();
+
+    const result = await this.auditLogViewService.getInstanceAuditLogs(
+      instanceId,
+      0,
+    );
+    const message = this.auditLogViewService.formatAuditLogMessage(
+      result.logs,
+      result.logs.length,
+      result.total,
+    );
+
+    await ctx.reply(message, {
+      parse_mode: 'Markdown',
+      ...Keyboards.auditLogBack(),
+    });
+  }
+
+  @Action('audit:back')
+  async onAuditBack(@Ctx() ctx: Context): Promise<void> {
+    await ctx.answerCbQuery();
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
+    if (!account) {
+      await ctx.reply('❌ Account not found.');
+      return;
+    }
+
+    const instances = await this.auditLogViewService.getInstancesWithActivity(
+      account.id,
+    );
+
+    if (instances.length === 0) {
+      await ctx.reply(
+        '📋 **Audit Logs:**\n\nNo events with activity found.',
+        { parse_mode: 'Markdown' },
+      );
+      return;
+    }
+
+    const formattedInstances = instances.map((inst) => ({
+      id: inst.id,
+      title: inst.series.title,
+    }));
+
+    await ctx.reply('📋 **Audit Logs:**\n\nSelect an event to view actions:', {
+      parse_mode: 'Markdown',
+      ...Keyboards.auditLogInstances(formattedInstances),
+    });
+  }
+
+  @Action('audit:close')
+  async onAuditClose(@Ctx() ctx: Context): Promise<void> {
+    await ctx.answerCbQuery('Audit logs closed.');
   }
 
   private async announceSeriesById(

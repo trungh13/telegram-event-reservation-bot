@@ -5,6 +5,7 @@ import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GroupService } from '../account/group.service';
+import { AuditLogViewService } from '../participation/audit-log-view.service';
 import { WizardHandler } from './wizard.handler';
 import { Context } from 'telegraf';
 import { getBotToken } from 'nestjs-telegraf';
@@ -14,6 +15,7 @@ describe('TelegramService', () => {
   let mockAccountService: any;
   let mockEventService: any;
   let mockGroupService: any;
+  let mockAuditLogViewService: any;
   let mockWizardHandler: any;
 
   const mockBot = {
@@ -77,6 +79,12 @@ describe('TelegramService', () => {
       formatGroupsMessage: jest.fn(),
     };
 
+    mockAuditLogViewService = {
+      getInstancesWithActivity: jest.fn(),
+      getInstanceAuditLogs: jest.fn(),
+      formatAuditLogMessage: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelegramService,
@@ -85,6 +93,7 @@ describe('TelegramService', () => {
         { provide: ParticipationService, useValue: mockParticipationService },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: GroupService, useValue: mockGroupService },
+        { provide: AuditLogViewService, useValue: mockAuditLogViewService },
         { provide: WizardHandler, useValue: mockWizardHandler },
         { provide: getBotToken(), useValue: mockBot },
       ],
@@ -189,6 +198,81 @@ describe('TelegramService', () => {
         expect.stringContaining('Group 1'),
         expect.anything(),
       );
+    });
+  });
+
+  describe('onAuditLogs (/audit-logs)', () => {
+    it('should require account binding', async () => {
+      const ctx = createCtx('/audit-logs');
+      mockAccountService.getAccountForUser.mockResolvedValue(null);
+
+      await service.onAuditLogs(ctx);
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('link your account'),
+      );
+    });
+
+    it('should show instances with activity', async () => {
+      const ctx = createCtx('/audit-logs');
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
+      mockAuditLogViewService.getInstancesWithActivity.mockResolvedValue([
+        { id: 'inst_1', series: { title: 'Team Yoga' } },
+        { id: 'inst_2', series: { title: 'Standup' } },
+      ]);
+
+      await service.onAuditLogs(ctx);
+
+      expect(mockAuditLogViewService.getInstancesWithActivity).toHaveBeenCalledWith(
+        'acc_123',
+      );
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('Audit'),
+        expect.anything(),
+      );
+    });
+
+    it('should show message when no instances found', async () => {
+      const ctx = createCtx('/audit-logs');
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
+      mockAuditLogViewService.getInstancesWithActivity.mockResolvedValue([]);
+
+      await service.onAuditLogs(ctx);
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('No'),
+      );
+    });
+  });
+
+  describe('audit log actions', () => {
+    it('should handle audit:view action', async () => {
+      const ctx = createCtx('audit view') as any;
+      ctx.answerCbQuery = jest.fn();
+      ctx.match = ['audit:view:inst_123', 'inst_123'];
+      mockAuditLogViewService.getInstanceAuditLogs.mockResolvedValue({
+        logs: [
+          {
+            id: 'log_1',
+            action: 'PARTICIPANT_ADDED',
+            details: { userId: '123' },
+            occurredAt: new Date(),
+          },
+        ],
+        total: 1,
+        hasMore: false,
+      });
+      mockAuditLogViewService.formatAuditLogMessage.mockReturnValue(
+        '📋 Audit Log (1 of 1)',
+      );
+
+      await service.onAuditView(ctx);
+
+      expect(mockAuditLogViewService.getInstanceAuditLogs).toHaveBeenCalledWith(
+        'inst_123',
+        10,
+      );
+      expect(ctx.reply).toHaveBeenCalled();
     });
   });
 });
