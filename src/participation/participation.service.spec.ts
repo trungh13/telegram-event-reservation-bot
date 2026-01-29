@@ -42,10 +42,14 @@ describe('ParticipationService', () => {
     const instanceId = 'inst_123';
 
     it('should record participation if instance exists', async () => {
-      mockPrismaService.eventInstance.findUnique.mockResolvedValue({ id: instanceId });
+      mockPrismaService.eventInstance.findUnique.mockResolvedValue({
+        id: instanceId,
+      });
       // mockTelegramUserService.ensureUser returns void or user, doesn't matter much for this test unless relied upon
       mockTelegramUserService.ensureUser.mockResolvedValue(telegramUser);
-      mockPrismaService.participationLog.create.mockResolvedValue({ id: 'log_123' });
+      mockPrismaService.participationLog.create.mockResolvedValue({
+        id: 'log_123',
+      });
 
       const result = await service.recordParticipation({
         instanceId,
@@ -56,7 +60,9 @@ describe('ParticipationService', () => {
       expect(mockPrismaService.eventInstance.findUnique).toHaveBeenCalledWith({
         where: { id: instanceId },
       });
-      expect(mockTelegramUserService.ensureUser).toHaveBeenCalledWith(telegramUser);
+      expect(mockTelegramUserService.ensureUser).toHaveBeenCalledWith(
+        telegramUser,
+      );
       expect(mockPrismaService.participationLog.create).toHaveBeenCalled();
     });
 
@@ -64,7 +70,11 @@ describe('ParticipationService', () => {
       mockPrismaService.eventInstance.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.recordParticipation({ instanceId: 'missing', telegramUser, action: 'JOIN' }),
+        service.recordParticipation({
+          instanceId: 'missing',
+          telegramUser,
+          action: 'JOIN',
+        }),
       ).rejects.toThrow(NotFoundException);
     });
   });

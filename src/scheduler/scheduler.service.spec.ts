@@ -21,7 +21,9 @@ const mockPrismaService = {
 
 const mockBot = {
   telegram: {
-    sendMessage: jest.fn().mockResolvedValue({ message_id: 999, chat: { id: -1001 } }),
+    sendMessage: jest
+      .fn()
+      .mockResolvedValue({ message_id: 999, chat: { id: -1001 } }),
   },
 };
 
@@ -75,7 +77,9 @@ describe('SchedulerService', () => {
 
       mockPrismaService.eventSeries.findMany.mockResolvedValue([mockSeries]);
       mockPrismaService.eventInstance.findUnique.mockResolvedValue(null);
-      mockPrismaService.eventInstance.create.mockResolvedValue({ id: 'inst_1' });
+      mockPrismaService.eventInstance.create.mockResolvedValue({
+        id: 'inst_1',
+      });
 
       await service.materializeInstances();
 
@@ -98,7 +102,9 @@ describe('SchedulerService', () => {
       };
 
       mockPrismaService.eventSeries.findMany.mockResolvedValue([mockSeries]);
-      mockPrismaService.eventInstance.findUnique.mockResolvedValue({ id: 'exists' });
+      mockPrismaService.eventInstance.findUnique.mockResolvedValue({
+        id: 'exists',
+      });
 
       await service.materializeInstances();
 
@@ -116,13 +122,20 @@ describe('SchedulerService', () => {
 
       mockPrismaService.eventSeries.findMany.mockResolvedValue([mockSeries]);
       mockPrismaService.eventInstance.findUnique.mockResolvedValue(null);
-      mockPrismaService.eventInstance.create.mockResolvedValue({ id: 'inst_new', startTime: new Date() });
+      mockPrismaService.eventInstance.create.mockResolvedValue({
+        id: 'inst_new',
+        startTime: new Date(),
+      });
       mockPrismaService.eventInstance.update = jest.fn().mockResolvedValue({});
 
       await service.materializeInstances();
 
       expect(mockEventService.formatAttendanceMessage).toHaveBeenCalled();
-      expect(mockBot.telegram.sendMessage).toHaveBeenCalledWith('-100123', expect.any(String), expect.anything());
+      expect(mockBot.telegram.sendMessage).toHaveBeenCalledWith(
+        '-100123',
+        expect.any(String),
+        expect.anything(),
+      );
     });
   });
 });

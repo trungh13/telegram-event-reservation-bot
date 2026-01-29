@@ -46,7 +46,11 @@ describe('EventService', () => {
   describe('createSeries', () => {
     it('should create an event series if account exists', async () => {
       const mockAccount = { id: 'acc_123' };
-      const mockSeries = { id: 'ser_123', accountId: 'acc_123', title: 'Weekly Jog' };
+      const mockSeries = {
+        id: 'ser_123',
+        accountId: 'acc_123',
+        title: 'Weekly Jog',
+      };
 
       mockPrismaService.account.findUnique.mockResolvedValue(mockAccount);
       mockPrismaService.eventSeries.create.mockResolvedValue(mockSeries);

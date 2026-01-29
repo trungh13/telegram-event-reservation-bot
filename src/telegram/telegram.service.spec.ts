@@ -14,7 +14,9 @@ describe('TelegramService', () => {
 
   const mockBot = {
     telegram: {
-      sendMessage: jest.fn().mockResolvedValue({ message_id: 12345, chat: { id: -100123456 } }),
+      sendMessage: jest
+        .fn()
+        .mockResolvedValue({ message_id: 12345, chat: { id: -100123456 } }),
       getChatMember: jest.fn().mockResolvedValue({ status: 'member' }),
       editMessageText: jest.fn().mockResolvedValue(true),
     },
@@ -62,14 +64,15 @@ describe('TelegramService', () => {
     service = module.get<TelegramService>(TelegramService);
   });
 
-  const createCtx = (text: string, fromId = 123) => ({
-    message: { text, message_id: 1 },
-    reply: jest.fn(),
-    from: { id: fromId },
-    chat: { id: fromId, type: 'private' },
-    botInfo: { id: 999 },
-    telegram: mockBot.telegram,
-  } as unknown as Context);
+  const createCtx = (text: string, fromId = 123) =>
+    ({
+      message: { text, message_id: 1 },
+      reply: jest.fn(),
+      from: { id: fromId },
+      chat: { id: fromId, type: 'private' },
+      botInfo: { id: 999 },
+      telegram: mockBot.telegram,
+    }) as unknown as Context;
 
   it('should be defined', () => {
     expect(service).toBeDefined();
@@ -84,21 +87,29 @@ describe('TelegramService', () => {
 
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('`group` is required'),
-        expect.anything()
+        expect.anything(),
       );
     });
 
     it('should support named arguments with group', async () => {
-      const ctx = createCtx('/create title="Yoga" rrule="FREQ=DAILY" group="-100123"');
+      const ctx = createCtx(
+        '/create title="Yoga" rrule="FREQ=DAILY" group="-100123"',
+      );
       mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
-      mockEventService.createSeries.mockResolvedValue({ id: '123', title: 'Yoga' });
+      mockEventService.createSeries.mockResolvedValue({
+        id: '123',
+        title: 'Yoga',
+      });
 
       await service.onCreate(ctx);
 
-      expect(mockEventService.createSeries).toHaveBeenCalledWith('acc_123', expect.objectContaining({
-        title: 'Yoga',
-        recurrence: 'FREQ=DAILY',
-      }));
+      expect(mockEventService.createSeries).toHaveBeenCalledWith(
+        'acc_123',
+        expect.objectContaining({
+          title: 'Yoga',
+          recurrence: 'FREQ=DAILY',
+        }),
+      );
     });
   });
 
@@ -108,7 +119,7 @@ describe('TelegramService', () => {
       await service.onId(ctx);
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('Chat ID: `123`'),
-        expect.anything()
+        expect.anything(),
       );
     });
   });
@@ -117,14 +128,16 @@ describe('TelegramService', () => {
     it('should send announcement to target group if series has chatId', async () => {
       const ctx = createCtx('/announce 123');
       mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
-      
+
       const mockSeries = {
         id: '123',
         title: 'Weekly Yoga',
         chatId: BigInt('-5193203978'),
-        instances: [{ id: 'inst_1', startTime: new Date('2026-01-21T13:00:00Z') }]
+        instances: [
+          { id: 'inst_1', startTime: new Date('2026-01-21T13:00:00Z') },
+        ],
       };
-      
+
       mockEventService.getActiveSeries.mockResolvedValue([mockSeries]);
 
       await service.onAnnounce(ctx);
@@ -132,9 +145,11 @@ describe('TelegramService', () => {
       expect(mockBot.telegram.sendMessage).toHaveBeenCalledWith(
         '-5193203978',
         'Formatted Message',
-        expect.anything()
+        expect.anything(),
       );
-      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Announced to target group!'));
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('Announced to target group!'),
+      );
     });
   });
 });

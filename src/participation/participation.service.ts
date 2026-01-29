@@ -26,7 +26,9 @@ export class ParticipationService {
     });
 
     if (!instance) {
-      throw new NotFoundException(`Event instance ${data.instanceId} not found`);
+      throw new NotFoundException(
+        `Event instance ${data.instanceId} not found`,
+      );
     }
 
     // 2. Ensure Telegram user exists

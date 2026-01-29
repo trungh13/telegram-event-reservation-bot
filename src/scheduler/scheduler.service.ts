@@ -35,7 +35,9 @@ export class SchedulerService {
       try {
         await this.processSeries(series, now, horizon);
       } catch (error) {
-        this.logger.error(`Error processing series ${series.id}: ${error.message}`);
+        this.logger.error(
+          `Error processing series ${series.id}: ${error.message}`,
+        );
       }
     }
   }
@@ -57,12 +59,14 @@ export class SchedulerService {
   ): Promise<void> {
     // Default to 10 minutes ahead (just-in-time materialization)
     const horizon = end || new Date(start.getTime() + 10 * 60 * 1000);
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const { rrulestr, RRule } = require('rrule');
     let rule: { between: (start: Date, end: Date, inc: boolean) => Date[] };
 
     this.debug(`processSeries - Series: ${series.title} (${series.id})`);
-    this.debug(`processSeries - Recurrence: ${JSON.stringify(series.recurrence)}`);
+    this.debug(
+      `processSeries - Recurrence: ${JSON.stringify(series.recurrence)}`,
+    );
 
     const recurrence = series.recurrence;
     if (typeof recurrence === 'string') {
@@ -90,7 +94,7 @@ export class SchedulerService {
     const dates = rule.between(start, horizon, true);
     this.debug(`processSeries - Generated dates count: ${dates.length}`);
     if (dates.length > 0) {
-        this.debug(`processSeries - First date: ${dates[0].toISOString()}`);
+      this.debug(`processSeries - First date: ${dates[0].toISOString()}`);
     }
 
     for (const date of dates) {
@@ -105,7 +109,9 @@ export class SchedulerService {
       });
 
       if (!existing) {
-        this.logger.log(`Materializing instance for series ${series.title} at ${date}`);
+        this.logger.log(
+          `Materializing instance for series ${series.title} at ${date}`,
+        );
         const instance = await this.prisma.eventInstance.create({
           data: {
             seriesId: series.id,
@@ -121,11 +127,17 @@ export class SchedulerService {
     }
   }
 
-  private async autoAnnounce(series: EventSeries, instance: EventInstance): Promise<void> {
+  private async autoAnnounce(
+    series: EventSeries,
+    instance: EventInstance,
+  ): Promise<void> {
     if (!series.chatId) return;
 
     try {
-      const text = await this.eventService.formatAttendanceMessage(series, instance);
+      const text = await this.eventService.formatAttendanceMessage(
+        series,
+        instance,
+      );
       const keyboard = Markup.inlineKeyboard([
         [
           Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
@@ -139,7 +151,9 @@ export class SchedulerService {
         text,
         {
           ...keyboard,
-          message_thread_id: series.topicId ? parseInt(series.topicId) : undefined,
+          message_thread_id: series.topicId
+            ? parseInt(series.topicId)
+            : undefined,
           parse_mode: 'Markdown',
         },
       );
@@ -152,7 +166,9 @@ export class SchedulerService {
         },
       });
 
-      this.logger.log(`Auto-announced instance ${instance.id} to chat ${series.chatId}`);
+      this.logger.log(
+        `Auto-announced instance ${instance.id} to chat ${series.chatId}`,
+      );
     } catch (e) {
       this.logger.error(
         `Failed to auto-announce instance ${instance.id}: ${(e as Error).message}`,
@@ -160,7 +176,10 @@ export class SchedulerService {
     }
   }
 
-  private async notifyAdmins(series: EventSeries, instance: EventInstance): Promise<void> {
+  private async notifyAdmins(
+    series: EventSeries,
+    instance: EventInstance,
+  ): Promise<void> {
     const admins = await this.prisma.accountUserBinding.findMany({
       where: {
         accountId: series.accountId,
@@ -173,14 +192,23 @@ export class SchedulerService {
 
     for (const admin of admins) {
       try {
-        const message = `🔔 **Instance Materialized**\n\n` +
+        const message =
+          `🔔 **Instance Materialized**\n\n` +
           `Series: **${series.title}**\n` +
           `Time: \`${instance.startTime.toLocaleString()}\`\n\n` +
-          (series.chatId ? `✅ Automatically announced to group.` : `You can announce this using:\n\`/announce ${series.id}\``);
-          
-        await this.bot.telegram.sendMessage(admin.telegramUserId.toString(), message, { parse_mode: 'Markdown' });
+          (series.chatId
+            ? `✅ Automatically announced to group.`
+            : `You can announce this using:\n\`/announce ${series.id}\``);
+
+        await this.bot.telegram.sendMessage(
+          admin.telegramUserId.toString(),
+          message,
+          { parse_mode: 'Markdown' },
+        );
       } catch (e) {
-        this.logger.error(`Failed to notify admin ${admin.telegramUserId}: ${e.message}`);
+        this.logger.error(
+          `Failed to notify admin ${admin.telegramUserId}: ${e.message}`,
+        );
       }
     }
   }

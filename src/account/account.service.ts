@@ -10,12 +10,15 @@ export class AccountService {
     private readonly telegramUser: TelegramUserService,
   ) {}
 
-  async bindUserToAccount(accountId: string, tgUser: {
-    id: bigint;
-    username?: string;
-    firstName?: string;
-    lastName?: string;
-  }) {
+  async bindUserToAccount(
+    accountId: string,
+    tgUser: {
+      id: bigint;
+      username?: string;
+      firstName?: string;
+      lastName?: string;
+    },
+  ) {
     // 1. Ensure user exists
     await this.telegramUser.ensureUser(tgUser);
 

@@ -19,7 +19,9 @@ export class TelegramController {
   @Post(':token')
   async onUpdate(@Param('token') token: string, @Body() update: any) {
     if (this.isDevMode) {
-      this.logger.log(`[Debug] Incoming Webhook - Token: ${token.substring(0, 5)}...`);
+      this.logger.log(
+        `[Debug] Incoming Webhook - Token: ${token.substring(0, 5)}...`,
+      );
       this.logger.debug(`[Debug] Body: ${JSON.stringify(update, null, 2)}`);
     }
 

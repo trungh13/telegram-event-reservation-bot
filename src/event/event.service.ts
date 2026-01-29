@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { EventSeries, EventInstance, ParticipationLog } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SchedulerService } from '../scheduler/scheduler.service';
@@ -28,7 +33,10 @@ export class EventService {
     private readonly schedulerService: SchedulerService,
   ) {}
 
-  async createSeries(accountId: string, data: CreateSeriesInput): Promise<EventSeries> {
+  async createSeries(
+    accountId: string,
+    data: CreateSeriesInput,
+  ): Promise<EventSeries> {
     // Verify account exists
     const account = await this.prisma.account.findUnique({
       where: { id: accountId },
@@ -91,7 +99,10 @@ export class EventService {
 
     const latestVotes = new Map<string, ParticipationLogWithUser>();
     for (const p of participants) {
-      latestVotes.set(p.telegramUserId.toString(), p as ParticipationLogWithUser);
+      latestVotes.set(
+        p.telegramUserId.toString(),
+        p as ParticipationLogWithUser,
+      );
     }
 
     const attendees: string[] = [];

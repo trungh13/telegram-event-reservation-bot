@@ -40,7 +40,11 @@ describe('AccountService', () => {
   describe('createAccount', () => {
     it('should create an account and an api key', async () => {
       const mockAccount = { id: 'acc_123', name: 'Test Account' };
-      const mockApiKey = { id: 'key_123', key: 'sk_test_key', accountId: 'acc_123' };
+      const mockApiKey = {
+        id: 'key_123',
+        key: 'sk_test_key',
+        accountId: 'acc_123',
+      };
 
       mockPrismaService.account.create.mockResolvedValue(mockAccount);
       mockPrismaService.apiKey.create.mockResolvedValue(mockApiKey);
@@ -58,11 +62,11 @@ describe('AccountService', () => {
   describe('validateApiKey', () => {
     it('should return account if key is valid', async () => {
       const mockAccount = { id: 'acc_123', name: 'Test Account' };
-      const mockApiKeyRecord = { 
-        id: 'key_123', 
-        key: 'sk_valid', 
+      const mockApiKeyRecord = {
+        id: 'key_123',
+        key: 'sk_valid',
         accountId: 'acc_123',
-        account: mockAccount 
+        account: mockAccount,
       };
 
       mockPrismaService.apiKey.findUnique.mockResolvedValue(mockApiKeyRecord);
