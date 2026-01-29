@@ -8,7 +8,12 @@ describe('EventCardService', () => {
     id: 'inst_1',
     seriesId: 'series_1',
     startTime,
+    endTime: new Date(startTime.getTime() + 2 * 60 * 60 * 1000),
+    status: 'ACTIVE',
+    chatId: null,
+    topicId: null,
     createdAt: new Date(),
+    updatedAt: new Date(),
     announcementMessageId: null,
     announcementChatId: null,
   });

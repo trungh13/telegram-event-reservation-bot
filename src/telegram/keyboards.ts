@@ -106,9 +106,13 @@ export const Keyboards: any = {
   // Event card buttons - dynamic based on card state
   eventCardDynamic: (
     instanceId: string,
-    buttonConfig: { showJoin: boolean; showPlusOne: boolean; showLeave: boolean },
+    buttonConfig: {
+      showJoin: boolean;
+      showPlusOne: boolean;
+      showLeave: boolean;
+    },
   ) => {
-    const buttons = [];
+    const buttons: ReturnType<typeof Markup.button.callback>[] = [];
 
     if (buttonConfig.showJoin) {
       buttons.push(Markup.button.callback('✅ JOIN', `JOIN:${instanceId}`));

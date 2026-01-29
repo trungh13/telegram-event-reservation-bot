@@ -14,6 +14,7 @@ import { EventSeries, EventInstance } from '@prisma/client';
 import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
+import { GroupService } from '../account/group.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BindAccountSchema, CreateEventSeriesSchema } from './telegram.dto';
 import { WizardHandler } from './wizard.handler';
@@ -39,6 +40,7 @@ export class TelegramService {
     private readonly accountService: AccountService,
     private readonly eventService: EventService,
     private readonly participationService: ParticipationService,
+    private readonly groupService: GroupService,
     private readonly prisma: PrismaService,
     private readonly wizardHandler: WizardHandler,
   ) {}
@@ -359,6 +361,22 @@ export class TelegramService {
         `Future instances will not be created or announced.`,
       { parse_mode: 'Markdown' },
     );
+  }
+
+  @Command('groups')
+  async onGroups(@Ctx() ctx: Context): Promise<void> {
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
+    if (!account) {
+      await ctx.reply('❌ Please link your account first with /start <key>');
+      return;
+    }
+
+    const groups = await this.groupService.getGroupsForAccount(account.id);
+    const message = this.groupService.formatGroupsMessage(groups);
+
+    await ctx.reply(message, { parse_mode: 'Markdown' });
   }
 
   @On('text')

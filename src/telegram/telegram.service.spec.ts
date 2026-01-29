@@ -4,6 +4,7 @@ import { AccountService } from '../account/account.service';
 import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { GroupService } from '../account/group.service';
 import { WizardHandler } from './wizard.handler';
 import { Context } from 'telegraf';
 import { getBotToken } from 'nestjs-telegraf';
@@ -12,6 +13,7 @@ describe('TelegramService', () => {
   let service: TelegramService;
   let mockAccountService: any;
   let mockEventService: any;
+  let mockGroupService: any;
   let mockWizardHandler: any;
 
   const mockBot = {
@@ -70,6 +72,11 @@ describe('TelegramService', () => {
       handleCancel: jest.fn(),
     };
 
+    mockGroupService = {
+      getGroupsForAccount: jest.fn(),
+      formatGroupsMessage: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelegramService,
@@ -77,6 +84,7 @@ describe('TelegramService', () => {
         { provide: EventService, useValue: mockEventService },
         { provide: ParticipationService, useValue: mockParticipationService },
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: GroupService, useValue: mockGroupService },
         { provide: WizardHandler, useValue: mockWizardHandler },
         { provide: getBotToken(), useValue: mockBot },
       ],
@@ -145,6 +153,41 @@ describe('TelegramService', () => {
       );
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('Announced to target group!'),
+      );
+    });
+  });
+
+  describe('onGroups (/groups)', () => {
+    it('should require account binding', async () => {
+      const ctx = createCtx('/groups');
+      mockAccountService.getAccountForUser.mockResolvedValue(null);
+
+      await service.onGroups(ctx);
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('link your account'),
+      );
+    });
+
+    it('should show groups for account', async () => {
+      const ctx = createCtx('/groups');
+      mockAccountService.getAccountForUser.mockResolvedValue({ id: 'acc_123' });
+      mockGroupService.getGroupsForAccount.mockResolvedValue([
+        { id: '-100111', eventCount: 2 },
+        { id: '-100222', eventCount: 1 },
+      ]);
+      mockGroupService.formatGroupsMessage.mockReturnValue(
+        '📍 Groups: Group 1 (2 events), Group 2 (1 event)',
+      );
+
+      await service.onGroups(ctx);
+
+      expect(mockGroupService.getGroupsForAccount).toHaveBeenCalledWith(
+        'acc_123',
+      );
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('Group 1'),
+        expect.anything(),
       );
     });
   });
