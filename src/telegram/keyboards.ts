@@ -103,7 +103,32 @@ export const Keyboards: any = {
       ],
     ]),
 
-  // Event card buttons
+  // Event card buttons - dynamic based on card state
+  eventCardDynamic: (
+    instanceId: string,
+    buttonConfig: { showJoin: boolean; showPlusOne: boolean; showLeave: boolean },
+  ) => {
+    const buttons = [];
+
+    if (buttonConfig.showJoin) {
+      buttons.push(Markup.button.callback('✅ JOIN', `JOIN:${instanceId}`));
+    }
+    if (buttonConfig.showPlusOne) {
+      buttons.push(Markup.button.callback('➕ +1', `PLUS_ONE:${instanceId}`));
+    }
+    if (buttonConfig.showLeave) {
+      buttons.push(Markup.button.callback('❌ LEAVE', `LEAVE:${instanceId}`));
+    }
+
+    // No buttons means no keyboard
+    if (buttons.length === 0) {
+      return {};
+    }
+
+    return Markup.inlineKeyboard([buttons]);
+  },
+
+  // Legacy event card buttons - kept for compatibility
   eventCard: (instanceId: string, userJoined: boolean, isFull: boolean) => {
     if (isFull) {
       return Markup.inlineKeyboard([
