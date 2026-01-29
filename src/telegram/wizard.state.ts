@@ -4,7 +4,15 @@
  */
 
 export interface CreateWizardState {
-  step: 'title' | 'frequency' | 'day' | 'startDate' | 'time' | 'group' | 'limit' | 'confirm';
+  step:
+    | 'title'
+    | 'frequency'
+    | 'day'
+    | 'startDate'
+    | 'time'
+    | 'group'
+    | 'limit'
+    | 'confirm';
   title?: string;
   frequency?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ONCE';
   day?: string; // MO, TU, WE, TH, FR, SA, SU
@@ -49,7 +57,10 @@ class WizardStateManager {
     return state;
   }
 
-  update(userId: number, updates: Partial<CreateWizardState>): CreateWizardState | undefined {
+  update(
+    userId: number,
+    updates: Partial<CreateWizardState>,
+  ): CreateWizardState | undefined {
     const state = this.get(userId);
     if (!state) return undefined;
 
@@ -88,7 +99,13 @@ class WizardStateManager {
 
     if (state.frequency === 'WEEKLY' && state.day) {
       const dayMap: Record<string, number> = {
-        SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6,
+        SU: 0,
+        MO: 1,
+        TU: 2,
+        WE: 3,
+        TH: 4,
+        FR: 5,
+        SA: 6,
       };
       const targetDay = dayMap[state.day];
       const currentDay = result.getDay();

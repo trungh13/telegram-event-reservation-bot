@@ -22,15 +22,20 @@ export class WizardHandler {
 
   // Step 1: Start wizard - ask for title
   async startWizard(ctx: Context): Promise<void> {
-    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
     if (!account) {
       await ctx.reply('❌ Please link your account first with /start <key>');
       return;
     }
 
-    const msg = await ctx.reply('📋 **Create New Event**\n\nWhat\'s the event name?', {
-      parse_mode: 'Markdown',
-    });
+    const msg = await ctx.reply(
+      "📋 **Create New Event**\n\nWhat's the event name?",
+      {
+        parse_mode: 'Markdown',
+      },
+    );
 
     wizardState.start(ctx.from!.id, msg.message_id);
   }
@@ -51,10 +56,7 @@ export class WizardHandler {
 
   // Step 2: Show frequency options
   private async showFrequencyStep(ctx: Context, title: string): Promise<void> {
-    await ctx.reply(
-      `How often does "${title}" repeat?`,
-      Keyboards.frequency(),
-    );
+    await ctx.reply(`How often does "${title}" repeat?`, Keyboards.frequency());
   }
 
   // Handle frequency selection
@@ -112,7 +114,9 @@ export class WizardHandler {
 
   // Step 6: Show group selection
   private async showGroupStep(ctx: Context): Promise<void> {
-    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
     if (!account) {
       await ctx.reply('❌ Account not found.');
       wizardState.clear(ctx.from!.id);
@@ -132,10 +136,10 @@ export class WizardHandler {
     if (groups.length === 0) {
       await ctx.reply(
         '📍 **No groups linked yet.**\n\n' +
-        'To link a group:\n' +
-        '1. Add me to your Telegram group\n' +
-        '2. Run `/id` in that group to get the ID\n' +
-        '3. Reply here with the group ID (e.g., `-1001234567890`)',
+          'To link a group:\n' +
+          '1. Add me to your Telegram group\n' +
+          '2. Run `/id` in that group to get the ID\n' +
+          '3. Reply here with the group ID (e.g., `-1001234567890`)',
         { parse_mode: 'Markdown' },
       );
       wizardState.update(ctx.from!.id, { step: 'group' });
@@ -148,11 +152,18 @@ export class WizardHandler {
       name: `Group ${g.chatId!.toString().slice(-6)}`,
     }));
 
-    await ctx.reply('Which group should I post to?', Keyboards.groups(groupButtons));
+    await ctx.reply(
+      'Which group should I post to?',
+      Keyboards.groups(groupButtons),
+    );
   }
 
   // Handle group selection
-  async handleGroup(ctx: Context, groupId: string, groupName: string): Promise<void> {
+  async handleGroup(
+    ctx: Context,
+    groupId: string,
+    groupName: string,
+  ): Promise<void> {
     const state = wizardState.get(ctx.from!.id);
     if (!state) {
       await ctx.answerCbQuery('⏰ Session expired. Start over with /create');
@@ -173,7 +184,9 @@ export class WizardHandler {
     try {
       const id = BigInt(groupId);
       if (id > 0) {
-        await ctx.reply('❌ Group IDs are negative (e.g., `-1001234567890`). Try again.');
+        await ctx.reply(
+          '❌ Group IDs are negative (e.g., `-1001234567890`). Try again.',
+        );
         return true;
       }
 
@@ -181,7 +194,9 @@ export class WizardHandler {
       try {
         await ctx.telegram.getChat(groupId);
       } catch {
-        await ctx.reply('❌ I cannot access that group. Make sure I\'m a member.');
+        await ctx.reply(
+          "❌ I cannot access that group. Make sure I'm a member.",
+        );
         return true;
       }
 
@@ -218,13 +233,21 @@ export class WizardHandler {
     if (!state) return;
 
     const dayNames: Record<string, string> = {
-      MO: 'Monday', TU: 'Tuesday', WE: 'Wednesday', TH: 'Thursday',
-      FR: 'Friday', SA: 'Saturday', SU: 'Sunday',
+      MO: 'Monday',
+      TU: 'Tuesday',
+      WE: 'Wednesday',
+      TH: 'Thursday',
+      FR: 'Friday',
+      SA: 'Saturday',
+      SU: 'Sunday',
     };
 
-    const freqDisplay = state.frequency === 'WEEKLY' && state.day
-      ? `Weekly on ${dayNames[state.day]}`
-      : state.frequency === 'ONCE' ? 'Once' : state.frequency;
+    const freqDisplay =
+      state.frequency === 'WEEKLY' && state.day
+        ? `Weekly on ${dayNames[state.day]}`
+        : state.frequency === 'ONCE'
+          ? 'Once'
+          : state.frequency;
 
     const limitDisplay = state.limit ? `${state.limit} people` : 'No limit';
 
@@ -259,7 +282,9 @@ export class WizardHandler {
     }
 
     // Create the event
-    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
     if (!account) {
       await ctx.reply('❌ Account not found.');
       wizardState.clear(ctx.from!.id);
@@ -274,7 +299,8 @@ export class WizardHandler {
       const startDate = wizardState.calculateStartDate(state, now);
 
       // Add DTSTART to rrule
-      const iso = startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      const iso =
+        startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
       const finalRrule = `DTSTART:${iso}\n${rrule}`;
 
       const series = await this.eventService.createSeries(account.id, {
@@ -288,8 +314,8 @@ export class WizardHandler {
 
       await ctx.reply(
         `✅ **Event Created!**\n\n` +
-        `"${series.title}" has been created.\n` +
-        `It will be announced ~5-10 minutes before each occurrence.`,
+          `"${series.title}" has been created.\n` +
+          `It will be announced ~5-10 minutes before each occurrence.`,
         { parse_mode: 'Markdown' },
       );
     } catch (error) {

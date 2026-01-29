@@ -1,5 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectBot, Update, Start, Help, On, Ctx, Command, Action } from 'nestjs-telegraf';
+import {
+  InjectBot,
+  Update,
+  Start,
+  Help,
+  On,
+  Ctx,
+  Command,
+  Action,
+} from 'nestjs-telegraf';
 import { Context, Telegraf, Markup } from 'telegraf';
 import { EventSeries, EventInstance } from '@prisma/client';
 import { AccountService } from '../account/account.service';
@@ -7,6 +16,9 @@ import { EventService } from '../event/event.service';
 import { ParticipationService } from '../participation/participation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BindAccountSchema, CreateEventSeriesSchema } from './telegram.dto';
+import { WizardHandler } from './wizard.handler';
+import { wizardState } from './wizard.state';
+import { Keyboards } from './keyboards';
 
 interface TelegramMessage {
   text?: string;
@@ -28,6 +40,7 @@ export class TelegramService {
     private readonly eventService: EventService,
     private readonly participationService: ParticipationService,
     private readonly prisma: PrismaService,
+    private readonly wizardHandler: WizardHandler,
   ) {}
 
   private get isDevMode(): boolean {
@@ -61,48 +74,23 @@ export class TelegramService {
   }
 
   private async sendHelpMessage(ctx: Context, title: string) {
-    const helpText = `${title}\n\n` +
-      `**🔑 Account Binding**\n` +
-      `\`/start <key>\` - Link this Telegram account to an organization.\n` +
-      `  • *Note:* Contact @trungh13 to obtain your API key.\n` +
-      `  • *Example:* \`/start abc123xyz\`\n\n` +
-
-      `**📋 Event Creation (\`/create\`)**\n` +
-      `Create recurring events with named flags:\n` +
-      `\`/create title="..." rrule="..." group="..." [options]\`\n\n` +
-      `  **Required Flags:**\n` +
-      `  • \`title\` - Event name (e.g., \`title="Team Yoga"\`)\n` +
-      `  • \`rrule\` - Recurrence rule (e.g., \`rrule="FREQ=WEEKLY"\`)\n` +
-      `  • \`group\` - Target group ID (use \`/id\` to find)\n\n` +
-      `  **Optional Flags:**\n` +
-      `  • \`date\` or \`start\` - First occurrence (\`dd/mm/yyyy HH:mm\`)\n` +
-      `  • \`limit\` - Max participants (\`limit="12"\`)\n` +
-      `  • \`topic\` - Forum topic ID\n\n` +
-      `  **Common Examples:**\n` +
-      `  • Weekly event:\n` +
-      `    \`/create title="Yoga" rrule="FREQ=WEEKLY;BYDAY=TU" group="-100123"\`\n` +
-      `  • Daily with a limit:\n` +
-      `    \`/create title="Standup" rrule="FREQ=DAILY" group="-100123" limit="10"\`\n` +
-      `  • Every 2 weeks:\n` +
-      `    \`/create title="Retro" rrule="FREQ=WEEKLY;INTERVAL=2" group="-100123"\`\n\n` +
-
-      `**📢 Announcements**\n` +
-      `\`/announce <series_id>\` - Manually post an event to its group.\n` +
-      `  • Events are auto-announced by default if a \`group\` was set.\n` +
-      `  • Use this to re-post or when testing.\n\n` +
-
+    const helpText =
+      `${title}\n\n` +
+      `**🔑 Getting Started**\n` +
+      `/start <key> - Link your Telegram to an organization\n` +
+      `  • Contact @trungh13 to get your API key\n\n` +
+      `**📋 Events**\n` +
+      `/create - Create a new event (step-by-step wizard)\n` +
+      `/list - View and manage your events\n` +
+      `/announce <id> - Manually post an event\n` +
+      `/remove <id> - Remove an event series\n\n` +
       `**🔧 Utilities**\n` +
-      `• \`/list\` - Show all your active event series.\n` +
-      `• \`/remove <id>\` - Remove/deactivate an event series.\n` +
-      `• \`/id\` - Get the current chat's ID (use in a group).\n\n` +
-
-      `**📖 RRule Cheat Sheet**\n` +
-      `• \`FREQ\`: DAILY, WEEKLY, MONTHLY, YEARLY\n` +
-      `• \`BYDAY\`: MO, TU, WE, TH, FR, SA, SU (comma separated)\n` +
-      `• \`INTERVAL\`: e.g., \`2\` for every other week\n` +
-      `• \`COUNT\`: e.g., \`10\` to stop after 10 occurrences\n` +
-      `• \`BYMONTHDAY\`: e.g., \`1,15\` for 1st and 15th\n\n` +
-
+      `/id - Get the current chat's ID (use in groups)\n` +
+      `/help - Show this message\n\n` +
+      `**💡 Tips**\n` +
+      `• Add me to your group first, then use /id there\n` +
+      `• Events are announced ~5-10 minutes before start\n` +
+      `• Participants can join/leave via buttons\n\n` +
       `☕️ **Support the project**\n` +
       `[Buy Me a Coffee](https://buymeacoffee.com/trungh13)`;
 
@@ -134,7 +122,9 @@ export class TelegramService {
 
   private async bindUserHelper(ctx: Context, token: string) {
     const from = ctx.from;
-    this.logger.log(`Binding attempt: User ${from?.id} (@${from?.username}) with token ${token}`);
+    this.logger.log(
+      `Binding attempt: User ${from?.id} (@${from?.username}) with token ${token}`,
+    );
 
     const validation = BindAccountSchema.safeParse({ token });
     if (!validation.success) {
@@ -151,7 +141,9 @@ export class TelegramService {
         lastName: ctx.from!.last_name,
       });
 
-      await ctx.reply(`Successfully bound to account: ${account.name}! You are now an admin.`);
+      await ctx.reply(
+        `Successfully bound to account: ${account.name}! You are now an admin.`,
+      );
     } catch (error) {
       this.logger.error(`Failed to bind user: ${error.message}`);
       await ctx.reply(`Invalid or expired token.`);
@@ -160,181 +152,78 @@ export class TelegramService {
 
   @Command('list')
   async onList(@Ctx() ctx: Context): Promise<void> {
-    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
     if (!account) {
-      await ctx.reply('You are not bound to any account. Use /start <token> first.');
+      await ctx.reply('❌ Please link your account first with /start <key>');
       return;
     }
 
     const series = await this.eventService.getActiveSeries(account.id);
     if (series.length === 0) {
-      await ctx.reply('No active event series found.');
+      await ctx.reply(
+        "📋 **Your Events:**\n\nYou don't have any active events yet.",
+        {
+          parse_mode: 'Markdown',
+          ...Keyboards.createEvent(),
+        },
+      );
       return;
     }
 
-    const list = series
-      .map((s) => {
-        const target = s.chatId ? `🎯 Target: \`${s.chatId}\`` : '⚠️ No target';
-        return (
-          `📌 **${s.title}**\n` +
-          `ID: \`${s.id}\`\n` +
-          `${target}\n` +
-          `🔁 \`${s.recurrence}\``
-        );
-      })
-      .join('\n\n---\n\n');
+    // Send header
+    await ctx.reply('📋 **Your Events:**', { parse_mode: 'Markdown' });
 
-    await ctx.reply(
-      `**Active Event Series:**\n\n${list}\n\n💡 _Tip: Use \`/announce <ID>\` to post a specific series._`,
-      { parse_mode: 'Markdown' },
-    );
+    // Send each event as a card with action buttons
+    for (const s of series) {
+      const recurrenceStr = String(s.recurrence || '');
+      const freqMatch = recurrenceStr.match(/FREQ=(\w+)/);
+      const freq = freqMatch ? freqMatch[1].toLowerCase() : 'custom';
+      const freqDisplay = freq.charAt(0).toUpperCase() + freq.slice(1);
+
+      const timeMatch = recurrenceStr.match(/(\d{2}):(\d{2})/);
+      const timeDisplay = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : '';
+
+      const groupDisplay = s.chatId
+        ? `Group ${s.chatId.toString().slice(-6)}`
+        : 'No group';
+
+      const card = `📌 **${s.title}**\n${freqDisplay}${timeDisplay ? ` · ${timeDisplay}` : ''} · ${groupDisplay}`;
+
+      await ctx.reply(card, {
+        parse_mode: 'Markdown',
+        ...Keyboards.eventActions(s.id),
+      });
+    }
+
+    await ctx.reply('💡 Use /create to add a new event');
   }
 
   @Command('id')
   async onId(@Ctx() ctx: Context): Promise<void> {
     const chat = ctx.chat;
     const threadId = ctx.message?.message_thread_id;
-    
+
     let msg = `Chat ID: \`${chat?.id}\`\nType: ${chat?.type}`;
     if (threadId) {
-        msg += `\nTopic ID: \`${threadId}\``;
+      msg += `\nTopic ID: \`${threadId}\``;
     }
-    
+
     await ctx.reply(msg, { parse_mode: 'Markdown' });
   }
 
   @Command('create')
   async onCreate(@Ctx() ctx: Context): Promise<void> {
-    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
-    if (!account) {
-      await ctx.reply('Admin only. Link your account first.');
-      return;
-    }
-
-    const message = (ctx.message as TelegramMessage) || {};
-    const text = message.text || '';
-    const args = text.replace('/create', '').trim();
-    this.debug(`onCreate - args: "${args}"`);
-    
-    // Try Key-Value parsing first
-    let kv = this.parseKeyValueArgs(args);
-    this.debug(`onCreate - Parsed KV: ${JSON.stringify(kv)}`);
-    let title, recurrence, startDateStr, group, topic, maxParticipants;
-
-    if (Object.keys(kv).length > 0) {
-      title = kv['title'];
-      recurrence = kv['rrule'];
-      startDateStr = kv['date'] || kv['start'];
-      group = kv['group'] || kv['chat'];
-      topic = kv['topic'];
-      const limit = kv['limit'];
-      maxParticipants = limit ? parseInt(limit) : undefined;
-    } else {
-      // Fallback to positional quoted args
-      const positional = this.parseQuotedArgs(text).slice(1);
-      if (positional.length >= 2) {
-         title = positional[0];
-         recurrence = positional[1];
-         startDateStr = positional[2];
-         group = positional[3];
-         topic = positional[4];
-         const limit = positional[5];
-         maxParticipants = limit ? parseInt(limit) : undefined;
-      }
-    }
-
-    if (!title || !recurrence) {
-      this.debug(`Missing required fields: title=${title}, recurrence=${recurrence}`);
-      await ctx.reply(
-        'Usage (Named):\n`/create title="Weekly Yoga" rrule="FREQ=WEEKLY" group="-100..." date="20/01/2026 18:00"`\n\n' +
-        '⚠️ `group` is required! Use `/id` in a group to get its ID.',
-        { parse_mode: 'Markdown' }
-      );
-      return;
-    }
-
-    if (!group) {
-      this.debug(`Missing group parameter for: ${title}`);
-      await ctx.reply('❌ `group` is required. Use `/id` in a group to get its ID, then pass it as `group="-100..."`', { parse_mode: 'Markdown' });
-      return;
-    }
-
-    // Validate group ID format - must be negative (groups/supergroups start with -100)
-    const groupId = BigInt(group);
-    if (groupId > 0) {
-      await ctx.reply(
-        '❌ **Invalid group ID**\n\n' +
-        `The ID \`${group}\` is a private chat, not a group.\n\n` +
-        '**To get a group ID:**\n' +
-        '1. Add me to your Telegram group\n' +
-        '2. Run `/id` in that group\n' +
-        '3. Group IDs are negative (e.g., `-1001234567890`)',
-        { parse_mode: 'Markdown' }
-      );
-      return;
-    }
-
-    const validation = CreateEventSeriesSchema.safeParse({ title, recurrence, chatId: group, topicId: topic });
-    if (!validation.success) {
-      await ctx.reply(`❌ Validation Error:\n${validation.error.issues.map(e => `- ${e.message}`).join('\n')}`);
-      return;
-    }
-
-    let explicitStartTime: Date | undefined = undefined;
-    if (startDateStr) {
-        // Parse dd/mm/yyyy HH:mm
-        const [datePart, timePart] = startDateStr.split(' ');
-        if (datePart && timePart) {
-            const [d, m, y] = datePart.split('/').map(Number);
-            const [h, mm] = timePart.split(':').map(Number);
-            explicitStartTime = new Date(y, m - 1, d, h, mm);
-        }
-        
-        if (!explicitStartTime || isNaN(explicitStartTime.getTime())) {
-            await ctx.reply('❌ Invalid date format. Use "dd/mm/yyyy HH:mm"');
-            return;
-        }
-    }
-
-    // Verify Group Membership if targeted
-    if (group) {
-        try {
-            await ctx.telegram.getChatMember(group, ctx.botInfo.id);
-        } catch (e) {
-             await ctx.reply(`❌ I cannot access the group \`${group}\`. Please add me safely first!`, { parse_mode: 'Markdown'});
-             return;
-        }
-    }
-
-    let finalRecurrence = recurrence;
-    if (explicitStartTime) {
-        // Format to iCal format: 20260120T180000Z
-        const iso = explicitStartTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        finalRecurrence = `DTSTART:${iso}\n${recurrence}`;
-    }
-
-    try {
-      const series = await this.eventService.createSeries(account.id, {
-        title,
-        recurrence: finalRecurrence,
-        chatId: group ? BigInt(group) : undefined,
-        topicId: topic,
-        maxParticipants,
-      });
-      
-      let reply = `Created series: ${series.title}`;
-      if (group) reply += `\nTarget Group: ${group}`;
-      if (explicitStartTime) reply += `\nStart Date: ${explicitStartTime.toLocaleString()}`;
-
-      await ctx.reply(reply);
-    } catch (error) {
-      await ctx.reply(`Error creating series: ${error.message}`);
-    }
+    // Start the button-driven wizard flow
+    await this.wizardHandler.startWizard(ctx);
   }
 
   @Command('announce')
   async onAnnounce(@Ctx() ctx: Context): Promise<void> {
-    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
     if (!account) {
       await ctx.reply('Admin only.');
       return;
@@ -354,7 +243,9 @@ export class TelegramService {
     }
 
     const activeSeries = await this.eventService.getActiveSeries(account.id);
-    const series = activeSeries.find((s) => s.id === seriesId) as SeriesWithInstances | undefined;
+    const series = activeSeries.find((s) => s.id === seriesId) as
+      | SeriesWithInstances
+      | undefined;
 
     if (!series) {
       await ctx.reply('Series not found or inactive.');
@@ -379,7 +270,10 @@ export class TelegramService {
       return;
     }
 
-    const announcement = await this.eventService.formatAttendanceMessage(series, instance);
+    const announcement = await this.eventService.formatAttendanceMessage(
+      series,
+      instance,
+    );
     const keyboard = Markup.inlineKeyboard([
       [
         Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
@@ -392,7 +286,9 @@ export class TelegramService {
     const targetTopic = series.topicId;
 
     if (targetChat) {
-      this.debug(`onAnnounce - Posting to target: ${targetChat}, topic: ${targetTopic}`);
+      this.debug(
+        `onAnnounce - Posting to target: ${targetChat}, topic: ${targetTopic}`,
+      );
       const sentMsg = await ctx.telegram.sendMessage(targetChat, announcement, {
         ...keyboard,
         message_thread_id: targetTopic ? parseInt(targetTopic) : undefined,
@@ -415,7 +311,9 @@ export class TelegramService {
 
   @Command('remove')
   async onRemove(@Ctx() ctx: Context): Promise<void> {
-    const account = await this.accountService.getAccountForUser(BigInt(ctx.from!.id));
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
     if (!account) {
       await ctx.reply('Admin only. Link your account first.');
       return;
@@ -443,7 +341,9 @@ export class TelegramService {
     });
 
     if (!series) {
-      await ctx.reply('❌ Series not found or you don\'t have permission to remove it.');
+      await ctx.reply(
+        "❌ Series not found or you don't have permission to remove it.",
+      );
       return;
     }
 
@@ -455,24 +355,35 @@ export class TelegramService {
 
     await ctx.reply(
       `✅ **Series Removed**\n\n` +
-      `"${series.title}" has been deactivated.\n` +
-      `Future instances will not be created or announced.`,
+        `"${series.title}" has been deactivated.\n` +
+        `Future instances will not be created or announced.`,
       { parse_mode: 'Markdown' },
     );
   }
 
   @On('text')
   async onMessage(@Ctx() ctx: Context): Promise<void> {
-    // Catch-all for other text messages
     const message = (ctx.message as TelegramMessage) || {};
     const text = message.text || '';
 
-    // If it's a command that didn't match anything above, we can ignore or log
+    // Skip commands
     if (text.startsWith('/')) {
       return;
     }
 
-    this.logger.log(`Received message: ${text}`);
+    // Check if user is in wizard flow - handle title input
+    if (await this.wizardHandler.handleTextInput(ctx, text)) {
+      return;
+    }
+
+    // Check if user is entering a group ID manually
+    if (text.startsWith('-')) {
+      if (await this.wizardHandler.handleGroupIdInput(ctx, text)) {
+        return;
+      }
+    }
+
+    this.debug(`Received message: ${text}`);
   }
 
   @Action(/JOIN:(.+)/)
@@ -496,7 +407,218 @@ export class TelegramService {
     await this.recordVote(ctx, instanceId, 'LEAVE');
   }
 
-  private async recordVote(ctx: Context, instanceId: string, action: string): Promise<void> {
+  // Wizard action handlers
+  @Action('wizard:start')
+  async onWizardStart(@Ctx() ctx: Context): Promise<void> {
+    await ctx.answerCbQuery();
+    await this.wizardHandler.startWizard(ctx);
+  }
+
+  @Action(/wizard:freq:(.+)/)
+  async onWizardFrequency(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const frequency = match[1];
+    await this.wizardHandler.handleFrequency(ctx, frequency);
+  }
+
+  @Action(/wizard:day:(.+)/)
+  async onWizardDay(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const day = match[1];
+    await this.wizardHandler.handleDay(ctx, day);
+  }
+
+  @Action(/wizard:time:(.+)/)
+  async onWizardTime(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const time = match[1];
+    await this.wizardHandler.handleTime(ctx, time);
+  }
+
+  @Action(/wizard:group:(.+):(.+)/)
+  async onWizardGroup(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const groupId = match[1];
+    const groupName = match[2];
+    await this.wizardHandler.handleGroup(ctx, groupId, groupName);
+  }
+
+  @Action(/wizard:limit:(.+)/)
+  async onWizardLimit(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const limit = match[1];
+    await this.wizardHandler.handleLimit(ctx, limit);
+  }
+
+  @Action(/wizard:confirm:(.+)/)
+  async onWizardConfirm(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const confirmed = match[1] === 'yes';
+    await this.wizardHandler.handleConfirm(ctx, confirmed);
+  }
+
+  @Action('wizard:cancel')
+  async onWizardCancel(@Ctx() ctx: Context): Promise<void> {
+    await this.wizardHandler.handleCancel(ctx);
+  }
+
+  // List event action handlers
+  @Action(/list:announce:(.+)/)
+  async onListAnnounce(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const seriesId = match[1];
+    await ctx.answerCbQuery();
+    // Reuse announce logic
+    await this.announceSeriesById(ctx, seriesId);
+  }
+
+  @Action(/list:remove:confirm:(.+)/)
+  async onListRemoveConfirm(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const seriesId = match[1];
+    await ctx.answerCbQuery();
+    await this.removeSeriesById(ctx, seriesId);
+  }
+
+  @Action('list:remove:cancel')
+  async onListRemoveCancel(@Ctx() ctx: Context): Promise<void> {
+    await ctx.answerCbQuery('Cancelled');
+    await ctx.reply('Removal cancelled.');
+  }
+
+  @Action(/list:remove:(.+)/)
+  async onListRemove(@Ctx() ctx: Context): Promise<void> {
+    const match = (ctx as any).match as RegExpExecArray;
+    const seriesId = match[1];
+    await ctx.answerCbQuery();
+
+    const series = await this.prisma.eventSeries.findUnique({
+      where: { id: seriesId },
+    });
+
+    if (!series) {
+      await ctx.reply('❌ Series not found.');
+      return;
+    }
+
+    await ctx.reply(
+      `🗑 Remove "${series.title}"?\n\nThis will stop future announcements.`,
+      Keyboards.confirmRemove(seriesId),
+    );
+  }
+
+  @Action(/list:edit:(.+)/)
+  async onListEdit(@Ctx() ctx: Context): Promise<void> {
+    await ctx.answerCbQuery();
+    await ctx.reply('✏️ Edit feature coming soon!');
+  }
+
+  private async announceSeriesById(
+    ctx: Context,
+    seriesId: string,
+  ): Promise<void> {
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
+    if (!account) {
+      await ctx.reply('❌ Account not found.');
+      return;
+    }
+
+    const activeSeries = await this.eventService.getActiveSeries(account.id);
+    const series = activeSeries.find((s) => s.id === seriesId) as
+      | SeriesWithInstances
+      | undefined;
+
+    if (!series) {
+      await ctx.reply('❌ Series not found or inactive.');
+      return;
+    }
+
+    const instance = series.instances?.[0];
+    if (!instance) {
+      await ctx.reply('❌ No instances materialized yet.');
+      return;
+    }
+
+    if (instance.announcementMessageId) {
+      await ctx.reply('⚠️ Already announced.');
+      return;
+    }
+
+    const announcement = await this.eventService.formatAttendanceMessage(
+      series,
+      instance,
+    );
+    const keyboard = Markup.inlineKeyboard([
+      [
+        Markup.button.callback('✅ JOIN', `JOIN:${instance.id}`),
+        Markup.button.callback('➕ +1', `PLUS_ONE:${instance.id}`),
+        Markup.button.callback('❌ LEAVE', `LEAVE:${instance.id}`),
+      ],
+    ]);
+
+    const targetChat = series.chatId?.toString();
+    const targetTopic = series.topicId;
+
+    if (targetChat) {
+      const sentMsg = await ctx.telegram.sendMessage(targetChat, announcement, {
+        ...keyboard,
+        message_thread_id: targetTopic ? parseInt(targetTopic) : undefined,
+        parse_mode: 'Markdown',
+      });
+
+      await this.prisma.eventInstance.update({
+        where: { id: instance.id },
+        data: {
+          announcementMessageId: BigInt(sentMsg.message_id),
+          announcementChatId: BigInt(sentMsg.chat.id),
+        },
+      });
+
+      await ctx.reply('✅ Announced!');
+    } else {
+      await ctx.reply(announcement, { ...keyboard, parse_mode: 'Markdown' });
+    }
+  }
+
+  private async removeSeriesById(
+    ctx: Context,
+    seriesId: string,
+  ): Promise<void> {
+    const account = await this.accountService.getAccountForUser(
+      BigInt(ctx.from!.id),
+    );
+    if (!account) {
+      await ctx.reply('❌ Account not found.');
+      return;
+    }
+
+    const series = await this.prisma.eventSeries.findFirst({
+      where: {
+        id: seriesId,
+        accountId: account.id,
+      },
+    });
+
+    if (!series) {
+      await ctx.reply('❌ Series not found or no permission.');
+      return;
+    }
+
+    await this.prisma.eventSeries.update({
+      where: { id: seriesId },
+      data: { isActive: false },
+    });
+
+    await ctx.reply(`✅ "${series.title}" has been removed.`);
+  }
+
+  private async recordVote(
+    ctx: Context,
+    instanceId: string,
+    action: string,
+  ): Promise<void> {
     try {
       const instance = await this.prisma.eventInstance.findUnique({
         where: { id: instanceId },

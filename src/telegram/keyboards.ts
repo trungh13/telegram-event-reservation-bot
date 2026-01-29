@@ -4,7 +4,7 @@
 
 import { Markup } from 'telegraf';
 
-export const Keyboards = {
+export const Keyboards: any = {
   // Step 2: Frequency selection
   frequency: () =>
     Markup.inlineKeyboard([
@@ -143,7 +143,10 @@ export const Keyboards = {
   confirmRemove: (seriesId: string) =>
     Markup.inlineKeyboard([
       [
-        Markup.button.callback('Yes, remove', `list:remove:confirm:${seriesId}`),
+        Markup.button.callback(
+          'Yes, remove',
+          `list:remove:confirm:${seriesId}`,
+        ),
         Markup.button.callback('Cancel', `list:remove:cancel`),
       ],
     ]),
